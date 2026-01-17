@@ -6,6 +6,16 @@ Cargo.lock
 .idea/
 .vscode/
 *.iml
+*.code-workspace
+
+# AI agents
+.claude/
+.cursor/
+.aider*
+.continue/
+.codeium/
+.tabnine/
+.windsurf/
 
 # OS
 .DS_Store
