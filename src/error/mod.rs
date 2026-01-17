@@ -226,6 +226,50 @@ impl From<crate::validator::ValidationError> for AppError {
     }
 }
 
+impl From<crate::api::ApiError> for AppError {
+    fn from(err: crate::api::ApiError) -> Self {
+        use crate::api::ApiError;
+        match err {
+            ApiError::NotFound(id) => AppError::ApiError {
+                anidb_id: id,
+                message: "Anime not found".to_string(),
+            },
+            ApiError::RateLimited => AppError::ApiError {
+                anidb_id: 0,
+                message: "Rate limited by AniDB - please wait and try again".to_string(),
+            },
+            ApiError::NetworkError(msg) => AppError::ApiError {
+                anidb_id: 0,
+                message: format!("Network error: {}", msg),
+            },
+            ApiError::Timeout => AppError::ApiError {
+                anidb_id: 0,
+                message: "Request timed out".to_string(),
+            },
+            ApiError::ParseError(msg) => AppError::ApiError {
+                anidb_id: 0,
+                message: format!("Failed to parse response: {}", msg),
+            },
+            ApiError::ServerError(msg) => AppError::ApiError {
+                anidb_id: 0,
+                message: format!("API error: {}", msg),
+            },
+            ApiError::MaxRetriesExceeded { attempts } => AppError::ApiError {
+                anidb_id: 0,
+                message: format!("Max retries ({}) exceeded", attempts),
+            },
+            ApiError::NotConfigured => AppError::ApiError {
+                anidb_id: 0,
+                message: "API client not configured. Set ANIDB_CLIENT and ANIDB_CLIENT_VERSION environment variables or create a .env file".to_string(),
+            },
+            ApiError::Banned(msg) => AppError::ApiError {
+                anidb_id: 0,
+                message: format!("Banned by AniDB: {}", msg),
+            },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,3 +1,4 @@
+mod api;
 mod cli;
 mod error;
 mod logging;
@@ -13,9 +14,14 @@ use tracing::{debug, error, info};
 use validator::validate_directories;
 
 fn main() {
+    // Load .env file if present (silently ignore if not found)
+    let _ = dotenvy::dotenv();
+
     let args = Args::parse();
 
     logging::init(args.verbose);
+
+    debug!("Environment loaded, checking API configuration");
 
     if let Err(e) = run(args) {
         error!("{}", e);
