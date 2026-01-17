@@ -1,9 +1,11 @@
 mod cli;
+mod scanner;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use cli::Args;
-use tracing::info;
+use scanner::scan_directory;
+use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
 fn main() -> Result<()> {
@@ -21,8 +23,14 @@ fn main() -> Result<()> {
         info!("Revert mode: {:?}", history_file);
         // TODO: Implement revert (feature 42)
     } else if let Some(target_dir) = &args.target_dir {
-        info!("Target directory: {:?}", target_dir);
-        info!("Dry run: {}", args.dry);
+        let entries = scan_directory(target_dir).context("Failed to scan target directory")?;
+
+        info!("Found {} subdirectories", entries.len());
+
+        for entry in &entries {
+            debug!("  {}", entry.name);
+        }
+
         // TODO: Implement main operation (features 20, 21)
     }
 

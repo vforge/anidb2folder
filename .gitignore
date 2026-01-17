@@ -32,3 +32,6 @@ Thumbs.db
 
 # Tool-generated files (for testing)
 *.history.json
+
+# Test data
+/test-data/
