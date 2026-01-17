@@ -270,6 +270,14 @@ impl From<crate::api::ApiError> for AppError {
     }
 }
 
+impl From<crate::cache::CacheError> for AppError {
+    fn from(err: crate::cache::CacheError) -> Self {
+        AppError::CacheError {
+            message: err.to_string(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

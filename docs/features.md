@@ -226,7 +226,7 @@ Use this section to track implementation progress:
 | 05-format-parser | ✅ Complete | |
 | 06-format-validator | ✅ Complete | |
 | 10-anidb-api-client | ✅ Complete | |
-| 11-local-cache | ⬜ Not Started | |
+| 11-local-cache | ✅ Complete | |
 | 20-rename-to-readable | ⬜ Not Started | |
 | 21-rename-to-anidb | ⬜ Not Started | |
 | 30-character-sanitizer | ⬜ Not Started | |

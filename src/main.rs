@@ -1,4 +1,5 @@
 mod api;
+mod cache;
 mod cli;
 mod error;
 mod logging;
