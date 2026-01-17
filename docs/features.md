@@ -223,7 +223,7 @@ Use this section to track implementation progress:
 | 01-directory-scanner | ✅ Complete | |
 | 02-verbose-mode | ✅ Complete | |
 | 03-error-handling | ✅ Complete | |
-| 05-format-parser | ⬜ Not Started | |
+| 05-format-parser | ✅ Complete | |
 | 06-format-validator | ⬜ Not Started | |
 | 10-anidb-api-client | ⬜ Not Started | |
 | 11-local-cache | ⬜ Not Started | |
