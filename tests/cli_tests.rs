@@ -2,6 +2,11 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 use tempfile::tempdir;
 
+fn create_anidb_dirs(dir: &std::path::Path) {
+    std::fs::create_dir(dir.join("12345")).unwrap();
+    std::fs::create_dir(dir.join("[AS0] 67890")).unwrap();
+}
+
 #[test]
 fn test_help_flag() {
     Command::cargo_bin("anidb2folder")
@@ -34,6 +39,8 @@ fn test_missing_target_dir() {
 #[test]
 fn test_dry_flag() {
     let dir = tempdir().unwrap();
+    create_anidb_dirs(dir.path());
+
     Command::cargo_bin("anidb2folder")
         .unwrap()
         .args(["--dry", dir.path().to_str().unwrap()])
@@ -44,6 +51,8 @@ fn test_dry_flag() {
 #[test]
 fn test_verbose_flag() {
     let dir = tempdir().unwrap();
+    create_anidb_dirs(dir.path());
+
     Command::cargo_bin("anidb2folder")
         .unwrap()
         .args(["--verbose", dir.path().to_str().unwrap()])
@@ -63,6 +72,8 @@ fn test_revert_flag_without_target() {
 #[test]
 fn test_max_length_flag() {
     let dir = tempdir().unwrap();
+    create_anidb_dirs(dir.path());
+
     Command::cargo_bin("anidb2folder")
         .unwrap()
         .args(["--max-length", "200", dir.path().to_str().unwrap()])
@@ -73,6 +84,8 @@ fn test_max_length_flag() {
 #[test]
 fn test_cache_expiry_flag() {
     let dir = tempdir().unwrap();
+    create_anidb_dirs(dir.path());
+
     Command::cargo_bin("anidb2folder")
         .unwrap()
         .args(["--cache-expiry", "7", dir.path().to_str().unwrap()])
@@ -83,6 +96,8 @@ fn test_cache_expiry_flag() {
 #[test]
 fn test_all_flags_combined() {
     let dir = tempdir().unwrap();
+    create_anidb_dirs(dir.path());
+
     Command::cargo_bin("anidb2folder")
         .unwrap()
         .args([
@@ -123,15 +138,53 @@ fn test_file_instead_of_directory() {
 }
 
 #[test]
-fn test_scan_with_subdirectories() {
+fn test_validates_anidb_format() {
     let dir = tempdir().unwrap();
-    std::fs::create_dir(dir.path().join("subdir1")).unwrap();
-    std::fs::create_dir(dir.path().join("subdir2")).unwrap();
+    create_anidb_dirs(dir.path());
 
     Command::cargo_bin("anidb2folder")
         .unwrap()
         .args(["-v", dir.path().to_str().unwrap()])
         .assert()
         .success()
-        .stderr(predicate::str::contains("Found 2 subdirectories"));
+        .stderr(predicate::str::contains("AniDb format"));
+}
+
+#[test]
+fn test_rejects_unrecognized_format() {
+    let dir = tempdir().unwrap();
+    std::fs::create_dir(dir.path().join("Invalid Directory")).unwrap();
+
+    Command::cargo_bin("anidb2folder")
+        .unwrap()
+        .arg(dir.path().to_str().unwrap())
+        .assert()
+        .code(5) // ExitCode::UnrecognizedFormat
+        .stderr(predicate::str::contains("do not match any known format"));
+}
+
+#[test]
+fn test_rejects_mixed_formats() {
+    let dir = tempdir().unwrap();
+    std::fs::create_dir(dir.path().join("12345")).unwrap();
+    std::fs::create_dir(dir.path().join("Naruto (2002) [anidb-67890]")).unwrap();
+
+    Command::cargo_bin("anidb2folder")
+        .unwrap()
+        .arg(dir.path().to_str().unwrap())
+        .assert()
+        .code(4) // ExitCode::MixedFormats
+        .stderr(predicate::str::contains("multiple formats"));
+}
+
+#[test]
+fn test_rejects_empty_directory() {
+    let dir = tempdir().unwrap();
+
+    Command::cargo_bin("anidb2folder")
+        .unwrap()
+        .arg(dir.path().to_str().unwrap())
+        .assert()
+        .code(1) // ExitCode::GeneralError (NoDirectories)
+        .stderr(predicate::str::contains("No subdirectories"));
 }

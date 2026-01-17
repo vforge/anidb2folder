@@ -206,6 +206,26 @@ impl From<ScannerError> for AppError {
     }
 }
 
+impl From<crate::validator::ValidationError> for AppError {
+    fn from(err: crate::validator::ValidationError) -> Self {
+        use crate::validator::ValidationError;
+        match err {
+            ValidationError::UnrecognizedDirectories { directories } => {
+                AppError::UnrecognizedFormat { directories }
+            }
+            ValidationError::MixedFormats { mismatch } => AppError::MixedFormats {
+                anidb_count: mismatch.anidb_dirs.len(),
+                readable_count: mismatch.human_readable_dirs.len(),
+                anidb_examples: mismatch.anidb_dirs,
+                readable_examples: mismatch.human_readable_dirs,
+            },
+            ValidationError::NoDirectories => {
+                AppError::Other("No subdirectories found in target".to_string())
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,13 +1,16 @@
 mod cli;
 mod error;
 mod logging;
+mod parser;
 mod scanner;
+mod validator;
 
 use clap::Parser;
 use cli::Args;
 use error::AppError;
 use scanner::scan_directory;
 use tracing::{debug, error, info};
+use validator::validate_directories;
 
 fn main() {
     let args = Args::parse();
@@ -33,6 +36,14 @@ fn run(args: Args) -> Result<(), AppError> {
         for entry in &entries {
             debug!("  {}", entry.name);
         }
+
+        // Validate all directories are in same format
+        let validation = validate_directories(&entries)?;
+
+        info!(
+            "All directories are in {:?} format",
+            validation.format
+        );
 
         // TODO: Implement main operation (features 20, 21)
     }

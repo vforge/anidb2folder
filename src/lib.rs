@@ -3,6 +3,7 @@ pub mod error;
 pub mod logging;
 pub mod parser;
 pub mod scanner;
+pub mod validator;
 
 pub use error::{AppError, ExitCode};
 pub use parser::{
@@ -10,3 +11,4 @@ pub use parser::{
     DirectoryFormat, HumanReadableFormat, ParseError, ParsedDirectory,
 };
 pub use scanner::{scan_directory, DirectoryEntry, ScannerError};
+pub use validator::{validate_directories, FormatMismatch, ValidationError, ValidationResult};
