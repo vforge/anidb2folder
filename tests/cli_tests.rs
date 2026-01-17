@@ -104,8 +104,22 @@ fn test_nonexistent_directory() {
         .unwrap()
         .arg("/nonexistent/path")
         .assert()
-        .failure()
-        .stderr(predicate::str::contains("Path does not exist"));
+        .code(3) // ExitCode::DirectoryNotFound
+        .stderr(predicate::str::contains("does not exist"));
+}
+
+#[test]
+fn test_file_instead_of_directory() {
+    let dir = tempdir().unwrap();
+    let file_path = dir.path().join("file.txt");
+    std::fs::write(&file_path, "content").unwrap();
+
+    Command::cargo_bin("anidb2folder")
+        .unwrap()
+        .arg(file_path.to_str().unwrap())
+        .assert()
+        .code(3) // ExitCode::DirectoryNotFound (NotADirectory maps to same code)
+        .stderr(predicate::str::contains("not a directory"));
 }
 
 #[test]
