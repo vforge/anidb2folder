@@ -14,9 +14,9 @@ pub struct Args {
     #[arg(short, long)]
     pub dry: bool,
 
-    /// Enable verbose output
-    #[arg(short, long)]
-    pub verbose: bool,
+    /// Increase verbosity (-v, -vv, -vvv)
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    pub verbose: u8,
 
     /// Revert changes using a history file
     #[arg(short, long, value_name = "HISTORY_FILE")]

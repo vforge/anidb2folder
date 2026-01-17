@@ -116,8 +116,8 @@ fn test_scan_with_subdirectories() {
 
     Command::cargo_bin("anidb2folder")
         .unwrap()
-        .arg(dir.path().to_str().unwrap())
+        .args(["-v", dir.path().to_str().unwrap()])
         .assert()
         .success()
-        .stdout(predicate::str::contains("Found 2 subdirectories"));
+        .stderr(predicate::str::contains("Found 2 subdirectories"));
 }

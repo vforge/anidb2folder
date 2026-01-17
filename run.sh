@@ -38,6 +38,16 @@ Commands:
   check   Run fmt check, clippy, and tests
   fmt     Format code
   run     Run with arguments (e.g., ./run.sh run --help)
+
+Verbosity levels:
+  (none)  Only warnings and errors
+  -v      Info messages
+  -vv     Debug messages
+  -vvv    Trace messages
+
+Examples:
+  ./run.sh run -v ./test-data
+  ./run.sh run -vv ./test-data
 EOF
         ;;
 esac

@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
+use tracing::{debug, trace};
 
 #[derive(Error, Debug)]
 pub enum ScannerError {
@@ -30,6 +31,8 @@ impl DirectoryEntry {
 }
 
 pub fn scan_directory(target: &Path) -> Result<Vec<DirectoryEntry>, ScannerError> {
+    debug!(path = ?target, "Scanning directory");
+
     if !target.exists() {
         return Err(ScannerError::PathNotFound(target.to_path_buf()));
     }
@@ -52,7 +55,10 @@ pub fn scan_directory(target: &Path) -> Result<Vec<DirectoryEntry>, ScannerError
         let entry = entry?;
         let path = entry.path();
 
+        trace!(entry = ?path, "Examining entry");
+
         if !path.is_dir() {
+            trace!(path = ?path, "Skipping non-directory");
             continue;
         }
 
@@ -62,13 +68,17 @@ pub fn scan_directory(target: &Path) -> Result<Vec<DirectoryEntry>, ScannerError
         };
 
         if name.starts_with('.') {
+            trace!(name = %name, "Skipping hidden directory");
             continue;
         }
 
+        debug!(name = %name, "Found subdirectory");
         entries.push(DirectoryEntry::new(name, path));
     }
 
     entries.sort_by(|a, b| a.name.cmp(&b.name));
+
+    debug!(count = entries.len(), "Scan complete");
 
     Ok(entries)
 }

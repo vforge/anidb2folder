@@ -1,4 +1,5 @@
 mod cli;
+mod logging;
 mod scanner;
 
 use anyhow::{Context, Result};
@@ -6,18 +7,11 @@ use clap::Parser;
 use cli::Args;
 use scanner::scan_directory;
 use tracing::{debug, info};
-use tracing_subscriber::EnvFilter;
 
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let filter = if args.verbose {
-        EnvFilter::new("debug")
-    } else {
-        EnvFilter::new("info")
-    };
-
-    tracing_subscriber::fmt().with_env_filter(filter).init();
+    logging::init(args.verbose);
 
     if let Some(history_file) = &args.revert {
         info!("Revert mode: {:?}", history_file);

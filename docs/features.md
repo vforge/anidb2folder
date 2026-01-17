@@ -221,7 +221,7 @@ Use this section to track implementation progress:
 |---------|--------|-------|
 | 00-cli-scaffold | ✅ Complete | |
 | 01-directory-scanner | ✅ Complete | |
-| 02-verbose-mode | ⬜ Not Started | |
+| 02-verbose-mode | ✅ Complete | |
 | 03-error-handling | ⬜ Not Started | |
 | 05-format-parser | ⬜ Not Started | |
 | 06-format-validator | ⬜ Not Started | |

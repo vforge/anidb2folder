@@ -111,8 +111,8 @@ anidb2folder /path/to/directory/with/anidb/folders/
 # Dry run - preview changes without modifying filesystem
 anidb2folder --dry /path/to/directory/with/anidb/folders/
 
-# Verbose mode - detailed logging
-anidb2folder --verbose /path/to/directory/with/anidb/folders/
+# Verbose mode - detailed logging (use -v, -vv, or -vvv for more detail)
+anidb2folder -v /path/to/directory/with/anidb/folders/
 
 # Revert changes using a history file
 anidb2folder --revert /path/to/directory/<anidb2folder-history-YYYYMMDD-HHMMSS.json>
@@ -123,7 +123,7 @@ anidb2folder --revert /path/to/directory/<anidb2folder-history-YYYYMMDD-HHMMSS.j
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--dry` | `-d` | Simulate changes without modifying filesystem |
-| `--verbose` | `-v` | Enable detailed logging output |
+| `--verbose` | `-v` | Increase verbosity (-v info, -vv debug, -vvv trace) |
 | `--revert <file>` | `-r` | Revert changes using specified history file |
 | `--max-length <n>` | `-l` | Maximum directory name length (default: 255) |
 | `--cache-expiry <days>` | `-c` | Cache expiration in days (default: 30) |
