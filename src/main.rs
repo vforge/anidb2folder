@@ -164,7 +164,7 @@ fn run(args: Args, ui: &mut Ui) -> Result<(), AppError> {
                         });
                     }
 
-                    ui.progress(i + 1, total, &format!("{} → {}", op.source_name, op.destination_name));
+                    ui.rename_progress(i + 1, total, &op.source_name, &op.destination_name);
 
                     // Execute rename if not dry run
                     if !args.dry {

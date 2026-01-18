@@ -164,7 +164,7 @@ impl Progress {
                 counter.cyan(),
                 from.dimmed(),
                 "→".cyan(),
-                to.bold()
+                to
             );
         } else {
             let _ = writeln!(
@@ -326,7 +326,7 @@ impl Progress {
                 counter.cyan(),
                 from.dimmed(),
                 "→".cyan(),
-                to.bold()
+                to
             );
         } else {
             let _ = writeln!(self.writer, "[{}/{}] {} -> {}", current, total, from, to);

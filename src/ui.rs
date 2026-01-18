@@ -195,6 +195,7 @@ impl Ui {
     }
 
     /// Print progress: [current/total] message
+    #[allow(dead_code)]
     pub fn progress(&mut self, current: usize, total: usize, msg: &str) {
         if self.config.verbose {
             return;
@@ -204,6 +205,26 @@ impl Ui {
             let _ = writeln!(self.writer, "{} {}", counter.cyan(), msg);
         } else {
             let _ = writeln!(self.writer, "{} {}", counter, msg);
+        }
+    }
+
+    /// Print rename progress: [current/total] from → to
+    pub fn rename_progress(&mut self, current: usize, total: usize, from: &str, to: &str) {
+        if self.config.verbose {
+            return;
+        }
+        let counter = format!("[{}/{}]", current, total);
+        if self.config.colors_enabled {
+            let _ = writeln!(
+                self.writer,
+                "{} {} {} {}",
+                counter.cyan(),
+                from.dimmed(),
+                "→".cyan(),
+                to
+            );
+        } else {
+            let _ = writeln!(self.writer, "{} {} -> {}", counter, from, to);
         }
     }
 
