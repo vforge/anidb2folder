@@ -5,6 +5,7 @@ pub mod error;
 pub mod logging;
 pub mod output;
 pub mod parser;
+pub mod progress;
 pub mod rename;
 pub mod scanner;
 pub mod validator;
@@ -16,6 +17,7 @@ pub use api::{
 pub use cache::{CacheConfig, CacheEntry, CacheError, CacheStore, CACHE_VERSION};
 pub use error::{AppError, ExitCode};
 pub use output::{display_dry_run, display_dry_run_simple, display_execution_result};
+pub use progress::Progress;
 pub use parser::{
     detect_format, is_anidb_format, is_human_readable_format, parse_directory_name, AniDbFormat,
     DirectoryFormat, HumanReadableFormat, ParseError, ParsedDirectory,

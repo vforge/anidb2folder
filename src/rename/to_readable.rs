@@ -3,12 +3,13 @@ use std::path::Path;
 use thiserror::Error;
 use tracing::{debug, info, warn};
 
-use crate::api::{AniDbClient, AnimeInfo, ApiConfig, ApiError};
+use crate::api::{AniDbClient, ApiConfig, ApiError};
 use crate::cache::{CacheConfig, CacheStore};
 use crate::parser::{AniDbFormat, ParsedDirectory};
+use crate::progress::Progress;
 use crate::validator::ValidationResult;
 
-use super::name_builder::{build_human_readable_name, NameBuilderConfig, NameBuildResult};
+use super::name_builder::{build_human_readable_name, NameBuildResult, NameBuilderConfig};
 use super::types::{RenameDirection, RenameOperation, RenameResult};
 
 /// Errors that can occur during rename operations
@@ -68,6 +69,7 @@ pub fn rename_to_readable(
     validation: &ValidationResult,
     api_config: &ApiConfig,
     options: &RenameOptions,
+    progress: &mut Progress,
 ) -> Result<RenameResult, RenameError> {
     // Setup cache
     let cache_config = CacheConfig::for_target_dir(target_dir, options.cache_expiry_days);
@@ -91,14 +93,15 @@ pub fn rename_to_readable(
     };
 
     let mut result = RenameResult::new(RenameDirection::AniDbToReadable, options.dry_run);
+    let total = validation.directories.len();
 
     info!(
         "Preparing to rename {} directories to human-readable format",
-        validation.directories.len()
+        total
     );
 
     // First pass: prepare all operations (fetch data, build names)
-    for parsed in &validation.directories {
+    for (i, parsed) in validation.directories.iter().enumerate() {
         let anidb_format = match parsed {
             ParsedDirectory::AniDb(f) => f,
             _ => continue, // Skip if somehow wrong format
@@ -110,6 +113,7 @@ pub fn rename_to_readable(
             &mut cache,
             api_client.as_ref(),
             &name_config,
+            progress,
         )?;
 
         // Check destination doesn't already exist
@@ -118,6 +122,13 @@ pub fn rename_to_readable(
                 operation.destination_name.clone(),
             ));
         }
+
+        progress.rename_progress(
+            i + 1,
+            total,
+            &operation.source_name,
+            &operation.destination_name,
+        );
 
         result.add_operation(operation);
     }
@@ -145,24 +156,28 @@ fn prepare_rename_operation(
     cache: &mut CacheStore,
     api_client: Option<&AniDbClient>,
     config: &NameBuilderConfig,
+    progress: &mut Progress,
 ) -> Result<RenameOperation, RenameError> {
     debug!("Preparing rename for AniDB ID {}", anidb.anidb_id);
 
     // Try cache first
     let info = if let Some(cached) = cache.get(anidb.anidb_id) {
         debug!("Using cached data for AniDB ID {}", anidb.anidb_id);
+        progress.using_cache(anidb.anidb_id);
         cached
     } else {
         // Fetch from API
         let client = api_client.ok_or(RenameError::ApiNotConfigured)?;
 
         info!("Fetching data for AniDB ID {} from API", anidb.anidb_id);
+        progress.fetch_start(anidb.anidb_id);
         let info = client.fetch_anime(anidb.anidb_id).map_err(|e| {
             RenameError::ApiError {
                 id: anidb.anidb_id,
                 message: e.to_string(),
             }
         })?;
+        progress.fetch_complete();
 
         // Cache the result
         cache.insert(&info);
@@ -178,6 +193,10 @@ fn prepare_rename_operation(
             "Name truncated for AniDB ID {}: {} -> {}",
             anidb.anidb_id, info.title_main, name
         );
+        progress.warn(&format!(
+            "Name truncated for {}: {}",
+            anidb.anidb_id, info.title_main
+        ));
     }
 
     let source_path = target_dir.join(&anidb.original_name);
@@ -198,10 +217,10 @@ fn execute_rename(op: &RenameOperation) -> Result<(), RenameError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::DirectoryFormat;
+    use crate::api::AnimeInfo;
     use crate::scanner::DirectoryEntry;
     use crate::validator::validate_directories;
-    use std::path::PathBuf;
+    use std::io::Write;
     use tempfile::tempdir;
 
     fn make_entry(name: &str, path: &Path) -> DirectoryEntry {
@@ -209,6 +228,21 @@ mod tests {
             name: name.to_string(),
             path: path.join(name),
         }
+    }
+
+    /// Create a test progress reporter that writes to a buffer
+    fn test_progress() -> Progress {
+        // Use a null writer for tests
+        struct NullWriter;
+        impl Write for NullWriter {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        Progress::with_writer(Box::new(NullWriter))
     }
 
     #[test]
@@ -225,6 +259,7 @@ mod tests {
         let cache_config = CacheConfig::for_target_dir(dir.path(), 30);
         let mut cache = CacheStore::load(cache_config);
         let config = NameBuilderConfig::default();
+        let mut progress = test_progress();
 
         let anidb = AniDbFormat {
             series_tag: None,
@@ -233,7 +268,8 @@ mod tests {
         };
 
         // Without API client, should fail
-        let result = prepare_rename_operation(dir.path(), &anidb, &mut cache, None, &config);
+        let result =
+            prepare_rename_operation(dir.path(), &anidb, &mut cache, None, &config, &mut progress);
 
         assert!(matches!(result, Err(RenameError::ApiNotConfigured)));
     }
@@ -244,6 +280,7 @@ mod tests {
         let cache_config = CacheConfig::for_target_dir(dir.path(), 30);
         let mut cache = CacheStore::load(cache_config);
         let config = NameBuilderConfig::default();
+        let mut progress = test_progress();
 
         // Pre-populate cache
         let info = AnimeInfo {
@@ -261,7 +298,8 @@ mod tests {
         };
 
         // Should succeed using cache (no API client needed)
-        let result = prepare_rename_operation(dir.path(), &anidb, &mut cache, None, &config);
+        let result =
+            prepare_rename_operation(dir.path(), &anidb, &mut cache, None, &config, &mut progress);
 
         assert!(result.is_ok());
         let op = result.unwrap();
@@ -274,6 +312,7 @@ mod tests {
     #[test]
     fn test_rename_dry_run_no_filesystem_changes() {
         let dir = tempdir().unwrap();
+        let mut progress = test_progress();
 
         // Create test directories
         std::fs::create_dir(dir.path().join("12345")).unwrap();
@@ -297,7 +336,13 @@ mod tests {
             ..Default::default()
         };
 
-        let result = rename_to_readable(dir.path(), &validation, &ApiConfig::default(), &options);
+        let result = rename_to_readable(
+            dir.path(),
+            &validation,
+            &ApiConfig::default(),
+            &options,
+            &mut progress,
+        );
 
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -311,6 +356,7 @@ mod tests {
     #[test]
     fn test_rename_actual_execution() {
         let dir = tempdir().unwrap();
+        let mut progress = test_progress();
 
         // Create test directory
         std::fs::create_dir(dir.path().join("12345")).unwrap();
@@ -334,7 +380,13 @@ mod tests {
             ..Default::default()
         };
 
-        let result = rename_to_readable(dir.path(), &validation, &ApiConfig::default(), &options);
+        let result = rename_to_readable(
+            dir.path(),
+            &validation,
+            &ApiConfig::default(),
+            &options,
+            &mut progress,
+        );
 
         assert!(result.is_ok());
         let result = result.unwrap();
@@ -351,6 +403,7 @@ mod tests {
     #[test]
     fn test_rename_preserves_series_tag() {
         let dir = tempdir().unwrap();
+        let mut progress = test_progress();
 
         // Create test directory with series tag
         std::fs::create_dir(dir.path().join("[AS0] 12345")).unwrap();
@@ -374,7 +427,13 @@ mod tests {
             ..Default::default()
         };
 
-        let result = rename_to_readable(dir.path(), &validation, &ApiConfig::default(), &options);
+        let result = rename_to_readable(
+            dir.path(),
+            &validation,
+            &ApiConfig::default(),
+            &options,
+            &mut progress,
+        );
 
         assert!(result.is_ok());
 
@@ -388,6 +447,7 @@ mod tests {
     #[test]
     fn test_rename_error_destination_exists() {
         let dir = tempdir().unwrap();
+        let mut progress = test_progress();
 
         // Create source and destination directories
         std::fs::create_dir(dir.path().join("12345")).unwrap();
@@ -412,7 +472,13 @@ mod tests {
             ..Default::default()
         };
 
-        let result = rename_to_readable(dir.path(), &validation, &ApiConfig::default(), &options);
+        let result = rename_to_readable(
+            dir.path(),
+            &validation,
+            &ApiConfig::default(),
+            &options,
+            &mut progress,
+        );
 
         assert!(matches!(result, Err(RenameError::DestinationExists(_))));
     }
