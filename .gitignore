@@ -17,6 +17,9 @@ Cargo.lock
 .tabnine/
 .windsurf/
 
+# Working data
+work-data/
+
 # OS
 .DS_Store
 Thumbs.db
