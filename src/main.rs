@@ -9,12 +9,13 @@ mod rename;
 mod scanner;
 mod validator;
 
+use api::config_from_env;
 use clap::Parser;
 use cli::Args;
 use error::AppError;
-use output::display_dry_run;
+use output::{display_dry_run, display_execution_result};
 use parser::DirectoryFormat;
-use rename::{RenameDirection, RenameOperation, RenameResult};
+use rename::{build_anidb_name, rename_to_readable, RenameDirection, RenameOperation, RenameOptions, RenameResult};
 use scanner::scan_directory;
 use tracing::{debug, error, info};
 use validator::validate_directories;
@@ -57,63 +58,82 @@ fn run(args: Args) -> Result<(), AppError> {
             validation.format
         );
 
-        // Determine rename direction based on current format
-        let direction = match validation.format {
-            DirectoryFormat::AniDb => RenameDirection::AniDbToReadable,
-            DirectoryFormat::HumanReadable => RenameDirection::ReadableToAniDb,
+        // Perform rename based on current format
+        let result = match validation.format {
+            DirectoryFormat::AniDb => {
+                // AniDB -> Human-readable: requires API for metadata
+                let api_config = config_from_env();
+
+                if !api_config.is_configured() && !args.dry {
+                    // Check if we have cached data for all entries
+                    info!("API not configured, will use cached data if available");
+                }
+
+                let options = RenameOptions {
+                    max_length: args.max_length,
+                    dry_run: args.dry,
+                    cache_expiry_days: args.cache_expiry,
+                };
+
+                rename_to_readable(target_dir, &validation, &api_config, &options)?
+            }
+            DirectoryFormat::HumanReadable => {
+                // Human-readable -> AniDB: no API needed
+                let mut result = RenameResult::new(RenameDirection::ReadableToAniDb, args.dry);
+
+                for parsed in &validation.directories {
+                    let destination_name = build_anidb_name(
+                        parsed.series_tag(),
+                        parsed.anidb_id(),
+                    );
+
+                    let source_path = target_dir.join(parsed.original_name());
+
+                    let op = RenameOperation::new(
+                        source_path.clone(),
+                        destination_name.clone(),
+                        parsed.anidb_id(),
+                        false,
+                    );
+
+                    // Check destination doesn't exist
+                    if op.destination_path.exists() && !args.dry {
+                        return Err(AppError::RenameError {
+                            from: op.source_name.clone(),
+                            to: op.destination_name.clone(),
+                            source: std::io::Error::new(
+                                std::io::ErrorKind::AlreadyExists,
+                                "Destination already exists",
+                            ),
+                        });
+                    }
+
+                    // Execute rename if not dry run
+                    if !args.dry {
+                        std::fs::rename(&op.source_path, &op.destination_path)
+                            .map_err(|e| AppError::RenameError {
+                                from: op.source_name.clone(),
+                                to: op.destination_name.clone(),
+                                source: e,
+                            })?;
+
+                        info!("Renamed: {} -> {}", op.source_name, op.destination_name);
+                    }
+
+                    result.add_operation(op);
+                }
+
+                result
+            }
         };
-
-        // Build rename operations
-        let mut result = RenameResult::new(direction, args.dry);
-
-        for parsed in &validation.directories {
-            // For now, create placeholder operations showing what would happen
-            // Full implementation will come with features 20/21
-            let destination_name = match direction {
-                RenameDirection::AniDbToReadable => {
-                    // TODO: Fetch from API and build human-readable name (feature 20)
-                    format!(
-                        "{}Title [anidb-{}]",
-                        parsed
-                            .series_tag()
-                            .map(|s| format!("[{}] ", s))
-                            .unwrap_or_default(),
-                        parsed.anidb_id()
-                    )
-                }
-                RenameDirection::ReadableToAniDb => {
-                    // Build AniDB format name (feature 21)
-                    format!(
-                        "{}{}",
-                        parsed
-                            .series_tag()
-                            .map(|s| format!("[{}] ", s))
-                            .unwrap_or_default(),
-                        parsed.anidb_id()
-                    )
-                }
-            };
-
-            let source_path = target_dir.join(parsed.original_name());
-
-            result.add_operation(RenameOperation::new(
-                source_path,
-                destination_name,
-                parsed.anidb_id(),
-                false, // Truncation check will come with feature 31
-            ));
-        }
 
         // Display results
         if args.dry {
             display_dry_run(&result, &mut std::io::stdout())
                 .map_err(|e| AppError::Other(format!("Failed to display output: {}", e)))?;
         } else {
-            // TODO: Execute actual renames (features 20, 21)
-            info!(
-                "Would rename {} directories (use --dry to preview)",
-                result.len()
-            );
+            display_execution_result(&result, &mut std::io::stdout())
+                .map_err(|e| AppError::Other(format!("Failed to display output: {}", e)))?;
         }
     }
 

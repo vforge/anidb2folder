@@ -278,6 +278,36 @@ impl From<crate::cache::CacheError> for AppError {
     }
 }
 
+impl From<crate::rename::RenameError> for AppError {
+    fn from(err: crate::rename::RenameError) -> Self {
+        use crate::rename::RenameError;
+        match err {
+            RenameError::ApiError { id, message } => AppError::ApiError {
+                anidb_id: id,
+                message,
+            },
+            RenameError::FilesystemError { from, to, source } => AppError::RenameError {
+                from,
+                to,
+                source,
+            },
+            RenameError::DestinationExists(path) => AppError::RenameError {
+                from: "source".to_string(),
+                to: path,
+                source: std::io::Error::new(
+                    std::io::ErrorKind::AlreadyExists,
+                    "Destination already exists",
+                ),
+            },
+            RenameError::ApiNotConfigured => AppError::ApiError {
+                anidb_id: 0,
+                message: "API client not configured. Set ANIDB_CLIENT and ANIDB_CLIENT_VERSION environment variables".to_string(),
+            },
+            RenameError::CacheError(msg) => AppError::CacheError { message: msg },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -227,10 +227,10 @@ Use this section to track implementation progress:
 | 06-format-validator | ✅ Complete | |
 | 10-anidb-api-client | ✅ Complete | |
 | 11-local-cache | ✅ Complete | |
-| 20-rename-to-readable | ⬜ Not Started | |
-| 21-rename-to-anidb | ⬜ Not Started | |
-| 30-character-sanitizer | ⬜ Not Started | |
-| 31-name-truncation | ⬜ Not Started | |
+| 20-rename-to-readable | ✅ Complete | |
+| 21-rename-to-anidb | ✅ Complete | Implemented in main.rs |
+| 30-character-sanitizer | ✅ Complete | Inline in name_builder.rs |
+| 31-name-truncation | ✅ Complete | Inline in name_builder.rs |
 | 40-dry-run-mode | ✅ Complete | |
 | 41-history-tracking | ⬜ Not Started | |
 | 42-revert-operation | ⬜ Not Started | |

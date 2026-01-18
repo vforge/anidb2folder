@@ -20,6 +20,9 @@ pub use parser::{
     detect_format, is_anidb_format, is_human_readable_format, parse_directory_name, AniDbFormat,
     DirectoryFormat, HumanReadableFormat, ParseError, ParsedDirectory,
 };
-pub use rename::{RenameDirection, RenameOperation, RenameResult};
+pub use rename::{
+    build_anidb_name, build_human_readable_name, rename_to_readable, NameBuildResult,
+    NameBuilderConfig, RenameDirection, RenameError, RenameOperation, RenameOptions, RenameResult,
+};
 pub use scanner::{scan_directory, DirectoryEntry, ScannerError};
 pub use validator::{validate_directories, FormatMismatch, ValidationError, ValidationResult};
