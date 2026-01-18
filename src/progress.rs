@@ -81,6 +81,11 @@ impl Progress {
         let _ = writeln!(self.writer, "Using cached data for {}", anidb_id);
     }
 
+    /// Report that API would be called (dry run mode)
+    pub fn would_fetch(&mut self, anidb_id: u32) {
+        let _ = writeln!(self.writer, "Would fetch metadata for {} (dry run)", anidb_id);
+    }
+
     /// Report rename complete
     pub fn rename_complete(&mut self, success_count: usize, dry_run: bool) {
         let _ = writeln!(self.writer);

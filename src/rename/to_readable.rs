@@ -3,7 +3,7 @@ use std::path::Path;
 use thiserror::Error;
 use tracing::{debug, info, warn};
 
-use crate::api::{AniDbClient, ApiConfig, ApiError};
+use crate::api::{AniDbClient, AnimeInfo, ApiConfig, ApiError};
 use crate::cache::{CacheConfig, CacheStore};
 use crate::parser::{AniDbFormat, ParsedDirectory};
 use crate::progress::Progress;
@@ -114,6 +114,7 @@ pub fn rename_to_readable(
             api_client.as_ref(),
             &name_config,
             progress,
+            options.dry_run,
         )?;
 
         // Check destination doesn't already exist
@@ -157,6 +158,7 @@ fn prepare_rename_operation(
     api_client: Option<&AniDbClient>,
     config: &NameBuilderConfig,
     progress: &mut Progress,
+    dry_run: bool,
 ) -> Result<RenameOperation, RenameError> {
     debug!("Preparing rename for AniDB ID {}", anidb.anidb_id);
 
@@ -165,6 +167,16 @@ fn prepare_rename_operation(
         debug!("Using cached data for AniDB ID {}", anidb.anidb_id);
         progress.using_cache(anidb.anidb_id);
         cached
+    } else if dry_run {
+        // In dry run mode, don't call API - use placeholder data
+        debug!("Dry run: using placeholder for AniDB ID {}", anidb.anidb_id);
+        progress.would_fetch(anidb.anidb_id);
+        AnimeInfo {
+            anidb_id: anidb.anidb_id,
+            title_main: format!("[Title for anidb-{}]", anidb.anidb_id),
+            title_en: None,
+            release_year: None,
+        }
     } else {
         // Fetch from API
         let client = api_client.ok_or(RenameError::ApiNotConfigured)?;
@@ -267,11 +279,34 @@ mod tests {
             original_name: "12345".to_string(),
         };
 
-        // Without API client, should fail
+        // Without API client and not in dry run mode, should fail
         let result =
-            prepare_rename_operation(dir.path(), &anidb, &mut cache, None, &config, &mut progress);
+            prepare_rename_operation(dir.path(), &anidb, &mut cache, None, &config, &mut progress, false);
 
         assert!(matches!(result, Err(RenameError::ApiNotConfigured)));
+    }
+
+    #[test]
+    fn test_prepare_rename_dry_run_uses_placeholder() {
+        let dir = tempdir().unwrap();
+        let cache_config = CacheConfig::for_target_dir(dir.path(), 30);
+        let mut cache = CacheStore::load(cache_config);
+        let config = NameBuilderConfig::default();
+        let mut progress = test_progress();
+
+        let anidb = AniDbFormat {
+            series_tag: None,
+            anidb_id: 12345,
+            original_name: "12345".to_string(),
+        };
+
+        // In dry run mode without cache, should use placeholder
+        let result =
+            prepare_rename_operation(dir.path(), &anidb, &mut cache, None, &config, &mut progress, true);
+
+        assert!(result.is_ok());
+        let op = result.unwrap();
+        assert!(op.destination_name.contains("[Title for anidb-12345]"));
     }
 
     #[test]
@@ -299,7 +334,7 @@ mod tests {
 
         // Should succeed using cache (no API client needed)
         let result =
-            prepare_rename_operation(dir.path(), &anidb, &mut cache, None, &config, &mut progress);
+            prepare_rename_operation(dir.path(), &anidb, &mut cache, None, &config, &mut progress, false);
 
         assert!(result.is_ok());
         let op = result.unwrap();
