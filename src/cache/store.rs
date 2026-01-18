@@ -73,6 +73,9 @@ impl CacheStore {
     }
 
     /// Check if a valid (non-expired) entry exists
+    ///
+    /// TODO(feature-61): Cache management CLI commands
+    #[allow(dead_code)]
     pub fn has_valid(&self, anidb_id: u32) -> bool {
         self.get(anidb_id).is_some()
     }
@@ -86,6 +89,9 @@ impl CacheStore {
     }
 
     /// Remove expired entries from cache
+    ///
+    /// TODO(feature-61): Cache management CLI commands
+    #[allow(dead_code)]
     pub fn prune_expired(&mut self) -> usize {
         let expiry_days = self.config.expiry_days;
         let before_count = self.data.entries.len();
@@ -103,6 +109,9 @@ impl CacheStore {
     }
 
     /// Clear all cached entries
+    ///
+    /// TODO(feature-61): Cache management CLI commands
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.data.entries.clear();
         self.dirty = true;
@@ -142,16 +151,25 @@ impl CacheStore {
     }
 
     /// Get number of cached entries
+    ///
+    /// TODO(feature-61): Cache management CLI commands
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.data.entries.len()
     }
 
     /// Check if cache is empty
+    ///
+    /// TODO(feature-61): Cache management CLI commands
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.data.entries.is_empty()
     }
 
     /// Get the cache file path
+    ///
+    /// TODO(feature-61): Cache management CLI commands
+    #[allow(dead_code)]
     pub fn path(&self) -> &Path {
         &self.config.cache_path
     }

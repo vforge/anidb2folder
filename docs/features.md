@@ -26,6 +26,8 @@ docs/features/<index>-<feature-name>.md
 | `20-29` | Core Logic | Renaming operations |
 | `30-39` | Safety | Sanitization, truncation |
 | `40-49` | Operations | Dry run, history, revert |
+| `50-59` | UI/UX | User interface and experience improvements |
+| `60-69` | Enhancements | Safety and quality-of-life improvements |
 | `99` | Independent | Features with no strict implementation order |
 
 ---
@@ -107,6 +109,14 @@ Additional considerations, edge cases, or future enhancements.
 | [40](features/40-dry-run-mode.md) | Dry Run Mode | 20, 21 | Preview changes without execution |
 | [41](features/41-history-tracking.md) | History Tracking | 20, 21 | Log all changes to JSON history file |
 | [42](features/42-revert-operation.md) | Revert Operation | 41 | Restore directories from history file |
+
+### Enhancements (60-69)
+
+| Index | Feature | Dependencies | Description |
+|-------|---------|--------------|-------------|
+| 60 | Revert Safety Validation | 42 | Validate target directory before revert operation |
+| 61 | Cache Management CLI | 11 | CLI commands for cache info, clear, prune (--cache-info, --clear-cache) |
+| 62 | Use Direction Descriptions | 20, 21 | Use RenameDirection::description() instead of hardcoded strings in main.rs |
 
 ### Independent (99)
 
@@ -232,8 +242,11 @@ Use this section to track implementation progress:
 | 30-character-sanitizer | ✅ Complete | Inline in name_builder.rs |
 | 31-name-truncation | ✅ Complete | Inline in name_builder.rs |
 | 40-dry-run-mode | ✅ Complete | |
-| 41-history-tracking | ⬜ Not Started | |
-| 42-revert-operation | ⬜ Not Started | |
+| 41-history-tracking | ✅ Complete | |
+| 42-revert-operation | ✅ Complete | |
+| 60-revert-safety | ⬜ Not Started | Partial impl exists: `validate_for_revert` |
+| 61-cache-management | ⬜ Not Started | Partial impl exists: CacheStore methods |
+| 62-direction-descriptions | 🟡 In Progress | `description()` and `result.dry_run` used; `truncated_count` pending |
 | 99-github-actions-release | ⬜ Not Started | |
 
 **Legend:** ⬜ Not Started | 🟡 In Progress | ✅ Complete | ❌ Blocked

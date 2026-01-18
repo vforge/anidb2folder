@@ -55,6 +55,7 @@ impl Progress {
     }
 
     /// Create a progress reporter with a custom writer (for testing)
+    #[cfg(test)]
     pub fn with_writer(writer: Box<dyn Write>) -> Self {
         Self {
             writer,
@@ -70,84 +71,6 @@ impl Progress {
             writer: Box::new(io::sink()),
             silent: true,
             colors_enabled: false,
-        }
-    }
-
-    /// Report starting a scan
-    pub fn scan_start(&mut self, path: &std::path::Path) {
-        if self.silent {
-            return;
-        }
-        if self.colors_enabled {
-            let _ = writeln!(
-                self.writer,
-                "{}",
-                format!("Scanning {}...", path.display()).dimmed()
-            );
-        } else {
-            let _ = writeln!(self.writer, "Scanning {}...", path.display());
-        }
-    }
-
-    /// Report scan complete
-    pub fn scan_complete(&mut self, count: usize) {
-        if self.silent {
-            return;
-        }
-        if self.colors_enabled {
-            let _ = writeln!(
-                self.writer,
-                "{}: {}",
-                "Found".bold(),
-                format!("{} directories", count)
-            );
-        } else {
-            let _ = writeln!(self.writer, "Found {} directories", count);
-        }
-    }
-
-    /// Report starting validation
-    pub fn validate_start(&mut self) {
-        if self.silent {
-            return;
-        }
-        if self.colors_enabled {
-            let _ = writeln!(
-                self.writer,
-                "{}",
-                "Validating directory formats...".dimmed()
-            );
-        } else {
-            let _ = writeln!(self.writer, "Validating directory formats...");
-        }
-    }
-
-    /// Report validation complete
-    pub fn validate_complete(&mut self, format: &str) {
-        if self.silent {
-            return;
-        }
-        if self.colors_enabled {
-            let _ = writeln!(self.writer, "{}: {}", "Format".bold(), format);
-        } else {
-            let _ = writeln!(self.writer, "Format: {}", format);
-        }
-    }
-
-    /// Report starting rename operation
-    pub fn rename_start(&mut self, total: usize, direction: &str) {
-        if self.silent {
-            return;
-        }
-        let _ = writeln!(self.writer);
-        if self.colors_enabled {
-            let _ = writeln!(
-                self.writer,
-                "{}",
-                format!("Renaming {} directories ({})", total, direction).bold()
-            );
-        } else {
-            let _ = writeln!(self.writer, "Renaming {} directories ({})", total, direction);
         }
     }
 
@@ -213,46 +136,6 @@ impl Progress {
     /// Report that API would be called (dry run mode) - silent for cleaner output
     pub fn would_fetch(&mut self, _anidb_id: u32) {
         // Intentionally silent - too noisy for normal output
-    }
-
-    /// Report rename complete
-    pub fn rename_complete(&mut self, success_count: usize, dry_run: bool) {
-        if self.silent {
-            return;
-        }
-        let _ = writeln!(self.writer);
-        if dry_run {
-            if self.colors_enabled {
-                let _ = writeln!(
-                    self.writer,
-                    "{}",
-                    format!(
-                        "Dry run complete. {} directories would be renamed.",
-                        success_count
-                    )
-                    .dimmed()
-                );
-            } else {
-                let _ = writeln!(
-                    self.writer,
-                    "Dry run complete. {} directories would be renamed.",
-                    success_count
-                );
-            }
-        } else if self.colors_enabled {
-            let _ = writeln!(
-                self.writer,
-                "{} {}",
-                "✓".green().bold(),
-                format!("{} directories renamed", success_count).green()
-            );
-        } else {
-            let _ = writeln!(
-                self.writer,
-                "Complete. {} directories renamed.",
-                success_count
-            );
-        }
     }
 
     /// Report an error during operation (non-fatal)
@@ -398,55 +281,15 @@ mod tests {
     }
 
     #[test]
-    fn test_scan_output() {
-        let (mut progress, buffer) = create_test_progress();
-        let path = std::path::Path::new("/test/path");
-
-        progress.scan_start(path);
-        progress.scan_complete(5);
-
-        let output = String::from_utf8(buffer.lock().unwrap().clone()).unwrap();
-        assert!(output.contains("Scanning /test/path"));
-        assert!(output.contains("Found 5 directories"));
-    }
-
-    #[test]
-    fn test_validate_output() {
-        let (mut progress, buffer) = create_test_progress();
-
-        progress.validate_start();
-        progress.validate_complete("AniDB");
-
-        let output = String::from_utf8(buffer.lock().unwrap().clone()).unwrap();
-        assert!(output.contains("Validating"));
-        assert!(output.contains("Format: AniDB"));
-    }
-
-    #[test]
     fn test_rename_progress() {
         let (mut progress, buffer) = create_test_progress();
 
-        progress.rename_start(3, "AniDB -> Human-readable");
         progress.rename_progress(1, 3, "12345", "Anime Title [anidb-12345]");
         progress.rename_progress(2, 3, "67890", "Another Anime [anidb-67890]");
-        progress.rename_complete(2, false);
 
         let output = String::from_utf8(buffer.lock().unwrap().clone()).unwrap();
-        assert!(output.contains("Renaming 3 directories"));
         assert!(output.contains("[1/3]"));
         assert!(output.contains("[2/3]"));
-        assert!(output.contains("Complete. 2 directories renamed"));
-    }
-
-    #[test]
-    fn test_dry_run_complete() {
-        let (mut progress, buffer) = create_test_progress();
-
-        progress.rename_complete(5, true);
-
-        let output = String::from_utf8(buffer.lock().unwrap().clone()).unwrap();
-        assert!(output.contains("Dry run complete"));
-        assert!(output.contains("5 directories would be renamed"));
     }
 
     #[test]

@@ -76,6 +76,8 @@ impl HistoryFile {
 }
 
 impl HistoryDirection {
+    /// TODO(feature-42): Use when displaying history info to user
+    #[allow(dead_code)]
     pub fn description(&self) -> &'static str {
         match self {
             HistoryDirection::AnidbToReadable => "AniDB -> Human-readable",

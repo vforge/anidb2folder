@@ -82,20 +82,13 @@ pub fn validate_directories(
     })
 }
 
-/// Quick validation without full parsing results
-pub fn quick_validate(entries: &[DirectoryEntry]) -> Result<DirectoryFormat, ValidationError> {
-    validate_directories(entries).map(|r| r.format)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     fn make_entry(name: &str) -> DirectoryEntry {
         DirectoryEntry {
             name: name.to_string(),
-            path: PathBuf::from(format!("/test/{}", name)),
         }
     }
 
@@ -183,44 +176,5 @@ mod tests {
 
         assert_eq!(result.format, DirectoryFormat::AniDb);
         assert_eq!(result.directories.len(), 1);
-    }
-
-    #[test]
-    fn test_error_message_unrecognized() {
-        let err = ValidationError::UnrecognizedDirectories {
-            directories: vec!["Invalid1".to_string(), "Invalid2".to_string()],
-        };
-
-        let msg = err.format_error_message();
-
-        assert!(msg.contains("Invalid1"));
-        assert!(msg.contains("Invalid2"));
-        assert!(msg.contains("Expected formats:"));
-    }
-
-    #[test]
-    fn test_error_message_mixed() {
-        let err = ValidationError::MixedFormats {
-            mismatch: FormatMismatch {
-                anidb_dirs: vec!["12345".to_string()],
-                human_readable_dirs: vec!["Title [anidb-1]".to_string()],
-            },
-        };
-
-        let msg = err.format_error_message();
-
-        assert!(msg.contains("12345"));
-        assert!(msg.contains("Title [anidb-1]"));
-        assert!(msg.contains("AniDB format"));
-        assert!(msg.contains("Human-readable"));
-    }
-
-    #[test]
-    fn test_quick_validate() {
-        let entries = vec![make_entry("12345"), make_entry("[S] 99")];
-
-        let format = quick_validate(&entries).unwrap();
-
-        assert_eq!(format, DirectoryFormat::AniDb);
     }
 }

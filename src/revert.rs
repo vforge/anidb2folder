@@ -59,6 +59,8 @@ pub struct RevertOperation {
 #[derive(Debug)]
 pub struct RevertResult {
     pub operations: Vec<RevertOperation>,
+    /// TODO(feature-42): Display direction in revert UI output
+    #[allow(dead_code)]
     pub direction: RenameDirection,
     pub original_history: PathBuf,
     pub dry_run: bool,
@@ -380,7 +382,7 @@ mod tests {
 
     #[test]
     fn test_revert_creates_history() {
-        let (dir, history_path) = setup_test_scenario();
+        let (_dir, history_path) = setup_test_scenario();
         let mut progress = test_progress();
 
         let options = RevertOptions { dry_run: false };

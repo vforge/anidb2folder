@@ -21,12 +21,11 @@ pub enum ScannerError {
 #[derive(Debug, Clone)]
 pub struct DirectoryEntry {
     pub name: String,
-    pub path: PathBuf,
 }
 
 impl DirectoryEntry {
-    pub fn new(name: String, path: PathBuf) -> Self {
-        Self { name, path }
+    pub fn new(name: String) -> Self {
+        Self { name }
     }
 }
 
@@ -73,7 +72,7 @@ pub fn scan_directory(target: &Path) -> Result<Vec<DirectoryEntry>, ScannerError
         }
 
         debug!(name = %name, "Found subdirectory");
-        entries.push(DirectoryEntry::new(name, path));
+        entries.push(DirectoryEntry::new(name));
     }
 
     entries.sort_by(|a, b| a.name.cmp(&b.name));

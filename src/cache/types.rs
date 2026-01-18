@@ -76,6 +76,9 @@ impl CacheConfig {
     }
 
     /// Create config for user home cache directory
+    ///
+    /// TODO(feature-61): Global cache option (--global-cache)
+    #[allow(dead_code)]
     pub fn for_user_home(expiry_days: u32) -> Option<Self> {
         dirs::cache_dir().map(|cache_dir| Self {
             expiry_days,

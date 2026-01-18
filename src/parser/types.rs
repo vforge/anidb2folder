@@ -63,10 +63,4 @@ impl ParsedDirectory {
 pub enum ParseError {
     #[error("Directory name does not match any known format: {0}")]
     UnrecognizedFormat(String),
-
-    #[error("Invalid AniDB ID: {0}")]
-    InvalidAniDbId(String),
-
-    #[error("Missing required component: {0}")]
-    MissingComponent(String),
 }

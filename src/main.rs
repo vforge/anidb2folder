@@ -4,7 +4,6 @@ mod cli;
 mod error;
 mod history;
 mod logging;
-mod output;
 mod parser;
 mod progress;
 mod rename;
@@ -104,16 +103,16 @@ fn run(args: Args, ui: &mut Ui) -> Result<(), AppError> {
         // Step 3: Perform rename based on current format
         ui.blank();
 
-        let direction_str = match validation.format {
-            DirectoryFormat::AniDb => "AniDB → Human-readable",
-            DirectoryFormat::HumanReadable => "Human-readable → AniDB",
+        let direction = match validation.format {
+            DirectoryFormat::AniDb => RenameDirection::AniDbToReadable,
+            DirectoryFormat::HumanReadable => RenameDirection::ReadableToAniDb,
         };
 
         if args.dry {
             ui.boxed_title("DRY RUN");
         }
 
-        ui.section(&format!("Renaming ({})", direction_str));
+        ui.section(&format!("Renaming ({})", direction.description()));
         ui.blank();
 
         let result = match validation.format {
@@ -189,7 +188,7 @@ fn run(args: Args, ui: &mut Ui) -> Result<(), AppError> {
         // Summary
         ui.blank();
 
-        if args.dry {
+        if result.dry_run {
             ui.dim(&format!(
                 "{} directories would be renamed. Run without --dry to apply.",
                 result.operations.len()

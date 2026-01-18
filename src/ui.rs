@@ -37,15 +37,6 @@ impl UiConfig {
             verbose,
         }
     }
-
-    /// Create UI config for testing (no colors)
-    #[cfg(test)]
-    pub fn plain() -> Self {
-        Self {
-            colors_enabled: false,
-            verbose: false,
-        }
-    }
 }
 
 /// Check if we should use colors in output

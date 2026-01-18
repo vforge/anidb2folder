@@ -12,8 +12,8 @@ pub enum RenameDirection {
 impl RenameDirection {
     pub fn description(&self) -> &'static str {
         match self {
-            RenameDirection::AniDbToReadable => "AniDB -> Human-readable",
-            RenameDirection::ReadableToAniDb => "Human-readable -> AniDB",
+            RenameDirection::AniDbToReadable => "AniDB → Human-readable",
+            RenameDirection::ReadableToAniDb => "Human-readable → AniDB",
         }
     }
 }
@@ -87,6 +87,8 @@ impl RenameResult {
         self.operations.push(op);
     }
 
+    /// TODO(feature-62): Report truncated count in UI output
+    #[allow(dead_code)]
     pub fn truncated_count(&self) -> usize {
         self.operations.iter().filter(|op| op.truncated).count()
     }
@@ -108,11 +110,11 @@ mod tests {
     fn test_rename_direction_description() {
         assert_eq!(
             RenameDirection::AniDbToReadable.description(),
-            "AniDB -> Human-readable"
+            "AniDB → Human-readable"
         );
         assert_eq!(
             RenameDirection::ReadableToAniDb.description(),
-            "Human-readable -> AniDB"
+            "Human-readable → AniDB"
         );
     }
 

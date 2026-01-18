@@ -92,27 +92,6 @@ fn split_titles(titles: &str) -> (String, Option<String>) {
     }
 }
 
-/// Quick check if a name looks like AniDB format
-pub fn is_anidb_format(name: &str) -> bool {
-    ANIDB_REGEX.is_match(name)
-}
-
-/// Quick check if a name looks like human-readable format
-pub fn is_human_readable_format(name: &str) -> bool {
-    HUMAN_READABLE_REGEX.is_match(name)
-}
-
-/// Detect the format without full parsing
-pub fn detect_format(name: &str) -> Option<DirectoryFormat> {
-    if is_human_readable_format(name) {
-        Some(DirectoryFormat::HumanReadable)
-    } else if is_anidb_format(name) {
-        Some(DirectoryFormat::AniDb)
-    } else {
-        None
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,27 +230,6 @@ mod tests {
             }
             _ => panic!("Expected human-readable format"),
         }
-    }
-
-    // ============ Format Detection Tests ============
-
-    #[test]
-    fn test_detect_anidb_format() {
-        assert_eq!(detect_format("12345"), Some(DirectoryFormat::AniDb));
-        assert_eq!(detect_format("[X] 99"), Some(DirectoryFormat::AniDb));
-    }
-
-    #[test]
-    fn test_detect_human_readable_format() {
-        assert_eq!(
-            detect_format("Title (2020) [anidb-1]"),
-            Some(DirectoryFormat::HumanReadable)
-        );
-    }
-
-    #[test]
-    fn test_detect_unknown_format() {
-        assert_eq!(detect_format("Unknown Directory"), None);
     }
 
     // ============ Helper Method Tests ============

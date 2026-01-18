@@ -31,6 +31,8 @@ pub enum AppError {
     #[error("API error for anime {anidb_id}: {message}")]
     ApiError { anidb_id: u32, message: String },
 
+    /// TODO(feature-42): Implement From<HistoryError> for AppError and use in main.rs revert flow
+    #[allow(dead_code)]
     #[error("History file error: {message}")]
     HistoryError {
         path: Option<PathBuf>,
@@ -303,7 +305,6 @@ impl From<crate::rename::RenameError> for AppError {
                 anidb_id: 0,
                 message: "API client not configured. Set ANIDB_CLIENT and ANIDB_CLIENT_VERSION environment variables".to_string(),
             },
-            RenameError::CacheError(msg) => AppError::CacheError { message: msg },
         }
     }
 }

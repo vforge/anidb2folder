@@ -31,9 +31,6 @@ pub enum RenameError {
 
     #[error("API client not configured")]
     ApiNotConfigured,
-
-    #[error("Cache error: {0}")]
-    CacheError(String),
 }
 
 impl From<ApiError> for RenameError {
@@ -235,10 +232,9 @@ mod tests {
     use std::io::Write;
     use tempfile::tempdir;
 
-    fn make_entry(name: &str, path: &Path) -> DirectoryEntry {
+    fn make_entry(name: &str) -> DirectoryEntry {
         DirectoryEntry {
             name: name.to_string(),
-            path: path.join(name),
         }
     }
 
@@ -363,7 +359,7 @@ mod tests {
         });
         cache.save().unwrap();
 
-        let entries = vec![make_entry("12345", dir.path())];
+        let entries = vec![make_entry("12345")];
         let validation = validate_directories(&entries).unwrap();
 
         let options = RenameOptions {
@@ -407,7 +403,7 @@ mod tests {
         });
         cache.save().unwrap();
 
-        let entries = vec![make_entry("12345", dir.path())];
+        let entries = vec![make_entry("12345")];
         let validation = validate_directories(&entries).unwrap();
 
         let options = RenameOptions {
@@ -454,7 +450,7 @@ mod tests {
         });
         cache.save().unwrap();
 
-        let entries = vec![make_entry("[AS0] 12345", dir.path())];
+        let entries = vec![make_entry("[AS0] 12345")];
         let validation = validate_directories(&entries).unwrap();
 
         let options = RenameOptions {
@@ -499,7 +495,7 @@ mod tests {
         });
         cache.save().unwrap();
 
-        let entries = vec![make_entry("12345", dir.path())];
+        let entries = vec![make_entry("12345")];
         let validation = validate_directories(&entries).unwrap();
 
         let options = RenameOptions {

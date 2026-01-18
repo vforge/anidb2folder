@@ -1,4 +1,4 @@
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use tempfile::tempdir;
 
@@ -71,8 +71,7 @@ fn setup_anidb_test(dir: &std::path::Path) {
 
 #[test]
 fn test_help_flag() {
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .arg("--help")
         .assert()
         .success()
@@ -81,8 +80,7 @@ fn test_help_flag() {
 
 #[test]
 fn test_version_flag() {
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .arg("--version")
         .assert()
         .success()
@@ -91,8 +89,7 @@ fn test_version_flag() {
 
 #[test]
 fn test_missing_target_dir() {
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .assert()
         .failure()
         .stderr(predicate::str::contains("required"));
@@ -103,8 +100,7 @@ fn test_dry_flag() {
     let dir = tempdir().unwrap();
     setup_anidb_test(dir.path());
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .args(["--dry", dir.path().to_str().unwrap()])
         .assert()
         .success()
@@ -121,8 +117,7 @@ fn test_dry_flag_no_filesystem_changes() {
     std::fs::create_dir(dir.path().join(original_name)).unwrap();
     create_test_cache(dir.path());
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .args(["--dry", dir.path().to_str().unwrap()])
         .assert()
         .success();
@@ -136,8 +131,7 @@ fn test_verbose_flag() {
     let dir = tempdir().unwrap();
     setup_anidb_test(dir.path());
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .args(["--verbose", "--dry", dir.path().to_str().unwrap()])
         .assert()
         .success();
@@ -145,8 +139,7 @@ fn test_verbose_flag() {
 
 #[test]
 fn test_revert_flag_missing_file() {
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .args(["--revert", "/tmp/nonexistent-history.json"])
         .assert()
         .failure()
@@ -158,8 +151,7 @@ fn test_max_length_flag() {
     let dir = tempdir().unwrap();
     setup_anidb_test(dir.path());
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .args(["--dry", "--max-length", "200", dir.path().to_str().unwrap()])
         .assert()
         .success();
@@ -170,8 +162,7 @@ fn test_cache_expiry_flag() {
     let dir = tempdir().unwrap();
     setup_anidb_test(dir.path());
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .args(["--dry", "--cache-expiry", "7", dir.path().to_str().unwrap()])
         .assert()
         .success();
@@ -182,8 +173,7 @@ fn test_all_flags_combined() {
     let dir = tempdir().unwrap();
     setup_anidb_test(dir.path());
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .args([
             "--dry",
             "--verbose",
@@ -199,8 +189,7 @@ fn test_all_flags_combined() {
 
 #[test]
 fn test_nonexistent_directory() {
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .arg("/nonexistent/path")
         .assert()
         .code(3) // ExitCode::DirectoryNotFound
@@ -213,8 +202,7 @@ fn test_file_instead_of_directory() {
     let file_path = dir.path().join("file.txt");
     std::fs::write(&file_path, "content").unwrap();
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .arg(file_path.to_str().unwrap())
         .assert()
         .code(3) // ExitCode::DirectoryNotFound (NotADirectory maps to same code)
@@ -226,8 +214,7 @@ fn test_validates_anidb_format() {
     let dir = tempdir().unwrap();
     setup_anidb_test(dir.path());
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .args(["-v", "--dry", dir.path().to_str().unwrap()])
         .assert()
         .success()
@@ -239,8 +226,7 @@ fn test_rejects_unrecognized_format() {
     let dir = tempdir().unwrap();
     std::fs::create_dir(dir.path().join("Invalid Directory")).unwrap();
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .arg(dir.path().to_str().unwrap())
         .assert()
         .code(5) // ExitCode::UnrecognizedFormat
@@ -253,8 +239,7 @@ fn test_rejects_mixed_formats() {
     std::fs::create_dir(dir.path().join("12345")).unwrap();
     std::fs::create_dir(dir.path().join("Naruto (2002) [anidb-67890]")).unwrap();
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .arg(dir.path().to_str().unwrap())
         .assert()
         .code(4) // ExitCode::MixedFormats
@@ -265,8 +250,7 @@ fn test_rejects_mixed_formats() {
 fn test_rejects_empty_directory() {
     let dir = tempdir().unwrap();
 
-    Command::cargo_bin("anidb2folder")
-        .unwrap()
+    cargo_bin_cmd!("anidb2folder")
         .arg(dir.path().to_str().unwrap())
         .assert()
         .code(1) // ExitCode::GeneralError (NoDirectories)
