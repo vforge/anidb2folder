@@ -8,6 +8,7 @@ pub mod output;
 pub mod parser;
 pub mod progress;
 pub mod rename;
+pub mod revert;
 pub mod scanner;
 pub mod validator;
 
@@ -33,3 +34,4 @@ pub use history::{
     read_history, validate_for_revert, write_history, HistoryDirection, HistoryEntry, HistoryError,
     HistoryFile, OperationType, HISTORY_VERSION,
 };
+pub use revert::{revert_from_history, RevertError, RevertOperation, RevertOptions, RevertResult};

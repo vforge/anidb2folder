@@ -8,11 +8,13 @@ mod output;
 mod parser;
 mod progress;
 mod rename;
+mod revert;
 mod scanner;
 mod validator;
 
 use api::config_from_env;
 use history::write_history;
+use revert::{revert_from_history, RevertOptions};
 use clap::Parser;
 use cli::Args;
 use error::AppError;
@@ -46,7 +48,17 @@ fn run(args: Args) -> Result<(), AppError> {
 
     if let Some(history_file) = &args.revert {
         info!("Revert mode: {:?}", history_file);
-        // TODO: Implement revert (feature 42)
+
+        let options = RevertOptions {
+            dry_run: args.dry,
+        };
+
+        let result = revert_from_history(history_file, &options, &mut progress)
+            .map_err(|e| AppError::Other(format!("Revert failed: {}", e)))?;
+
+        // Display results
+        display_revert_result(&result, &mut std::io::stdout())
+            .map_err(|e| AppError::Other(format!("Failed to display output: {}", e)))?;
     } else if let Some(target_dir) = &args.target_dir {
         // Step 1: Scan directory
         progress.scan_start(target_dir);
@@ -171,5 +183,50 @@ fn run(args: Args) -> Result<(), AppError> {
         }
     }
 
+    Ok(())
+}
+
+fn display_revert_result(
+    result: &revert::RevertResult,
+    writer: &mut impl std::io::Write,
+) -> std::io::Result<()> {
+    writeln!(writer)?;
+
+    if result.dry_run {
+        writeln!(writer, "═══════════════════════════════════════════════════")?;
+        writeln!(writer, "                 REVERT DRY RUN")?;
+        writeln!(writer, "═══════════════════════════════════════════════════")?;
+        writeln!(writer)?;
+        writeln!(writer, "History file: {}", result.original_history.display())?;
+        writeln!(writer)?;
+        writeln!(writer, "Would revert {} directories:", result.operations.len())?;
+        writeln!(writer)?;
+
+        for (i, op) in result.operations.iter().enumerate() {
+            writeln!(writer, "  {}. [anidb-{}]", i + 1, op.anidb_id)?;
+            writeln!(writer, "     {} -> {}", op.current_name, op.revert_name)?;
+        }
+
+        writeln!(writer)?;
+        writeln!(writer, "Run without --dry to apply these reverts.")?;
+    } else {
+        writeln!(writer, "═══════════════════════════════════════════════════")?;
+        writeln!(writer, "                 REVERT COMPLETE")?;
+        writeln!(writer, "═══════════════════════════════════════════════════")?;
+        writeln!(writer)?;
+        writeln!(writer, "Reverted {} directories:", result.operations.len())?;
+        writeln!(writer)?;
+
+        for op in &result.operations {
+            writeln!(writer, "  ✓ {} -> {}", op.current_name, op.revert_name)?;
+        }
+
+        if let Some(ref history_path) = result.revert_history_path {
+            writeln!(writer)?;
+            writeln!(writer, "Revert history: {}", history_path.display())?;
+        }
+    }
+
+    writeln!(writer)?;
     Ok(())
 }

@@ -63,6 +63,16 @@ impl HistoryFile {
         let timestamp = self.executed_at.format("%Y%m%d-%H%M%S");
         format!("anidb2folder-history-{}.json", timestamp)
     }
+
+    /// Generate filename for a revert of this history
+    pub fn generate_revert_filename(&self, revert_time: &DateTime<Utc>) -> String {
+        let original_timestamp = self.executed_at.format("%Y%m%d-%H%M%S");
+        let revert_timestamp = revert_time.format("%Y%m%d-%H%M%S");
+        format!(
+            "anidb2folder-history-{}-revert-{}.json",
+            original_timestamp, revert_timestamp
+        )
+    }
 }
 
 impl HistoryDirection {

@@ -143,12 +143,13 @@ fn test_verbose_flag() {
 }
 
 #[test]
-fn test_revert_flag_without_target() {
+fn test_revert_flag_missing_file() {
     Command::cargo_bin("anidb2folder")
         .unwrap()
-        .args(["--revert", "/tmp/history.json"])
+        .args(["--revert", "/tmp/nonexistent-history.json"])
         .assert()
-        .success();
+        .failure()
+        .stderr(predicates::str::contains("Cannot open file"));
 }
 
 #[test]

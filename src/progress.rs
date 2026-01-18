@@ -25,7 +25,6 @@ impl Progress {
     }
 
     /// Create a progress reporter with a custom writer (for testing)
-    #[cfg(test)]
     pub fn with_writer(writer: Box<dyn Write>) -> Self {
         Self { writer }
     }
@@ -112,6 +111,39 @@ impl Progress {
     /// Report history file written
     pub fn history_written(&mut self, path: &std::path::Path) {
         let _ = writeln!(self.writer, "History saved to: {}", path.display());
+    }
+
+    /// Report starting a revert operation
+    pub fn revert_start(&mut self, total: usize, from_timestamp: &str) {
+        let _ = writeln!(self.writer);
+        let _ = writeln!(
+            self.writer,
+            "Reverting {} directories from history ({})",
+            total, from_timestamp
+        );
+    }
+
+    /// Report progress on a single revert
+    pub fn revert_progress(&mut self, current: usize, total: usize, from: &str, to: &str) {
+        let _ = writeln!(self.writer, "[{}/{}] {} -> {}", current, total, from, to);
+    }
+
+    /// Report revert complete
+    pub fn revert_complete(&mut self, count: usize, dry_run: bool) {
+        let _ = writeln!(self.writer);
+        if dry_run {
+            let _ = writeln!(
+                self.writer,
+                "Dry run complete. {} directories would be reverted.",
+                count
+            );
+        } else {
+            let _ = writeln!(
+                self.writer,
+                "Revert complete. {} directories restored.",
+                count
+            );
+        }
     }
 }
 
