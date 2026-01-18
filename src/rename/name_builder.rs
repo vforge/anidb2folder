@@ -142,8 +142,12 @@ pub fn sanitize_filename(name: &str) -> String {
     result
 }
 
+/// Single Unicode ellipsis character (3 bytes in UTF-8)
+const ELLIPSIS: &str = "…";
+
 /// Truncate name to fit within max length while preserving required parts
-/// This is a basic implementation - feature 31 will provide smarter truncation
+/// Preserves: series tag, year, anidb suffix
+/// Truncates: title (with ellipsis)
 fn truncate_name(series_tag: Option<&str>, info: &AnimeInfo, max_length: usize) -> String {
     // Required suffix: [anidb-ID]
     let suffix = format!("[anidb-{}]", info.anidb_id);
@@ -167,7 +171,8 @@ fn truncate_name(series_tag: Option<&str>, info: &AnimeInfo, max_length: usize) 
 
     if fixed_len >= max_length {
         // Can't even fit the fixed parts, just use minimal format
-        return format!("{}... {}", &info.title_main[..3.min(info.title_main.len())], suffix);
+        let minimal_title = truncate_string_utf8_safe(&info.title_main, 3);
+        return format!("{}{} {}", minimal_title, ELLIPSIS, suffix);
     }
 
     let available_for_title = max_length - fixed_len;
@@ -176,14 +181,51 @@ fn truncate_name(series_tag: Option<&str>, info: &AnimeInfo, max_length: usize) 
     let title = sanitize_filename(&info.title_main);
 
     let truncated_title = if title.len() > available_for_title {
-        // Truncate with ellipsis
-        let truncate_at = available_for_title.saturating_sub(3);
-        format!("{}...", &title[..truncate_at.min(title.len())])
+        // Truncate with ellipsis (ellipsis is 3 bytes)
+        let truncate_at = available_for_title.saturating_sub(ELLIPSIS.len());
+        let truncated = truncate_string_utf8_safe(&title, truncate_at);
+        format!("{}{}", truncated, ELLIPSIS)
     } else {
         title
     };
 
     format!("{}{}{} {}", prefix, truncated_title, year_part, suffix)
+}
+
+/// Truncate a string to fit within a byte limit, respecting UTF-8 character boundaries
+/// Also tries to preserve word boundaries when possible
+fn truncate_string_utf8_safe(s: &str, max_bytes: usize) -> String {
+    if s.len() <= max_bytes {
+        return s.to_string();
+    }
+
+    // Find the last valid character boundary before max_bytes
+    let mut last_valid = 0;
+    let mut last_word_boundary = 0;
+
+    for (i, c) in s.char_indices() {
+        let next_pos = i + c.len_utf8();
+
+        if next_pos > max_bytes {
+            break;
+        }
+
+        last_valid = next_pos;
+
+        // Track word boundaries (space, hyphen)
+        if c.is_whitespace() || c == '-' {
+            last_word_boundary = i;
+        }
+    }
+
+    // Prefer word boundary if it preserves at least half the content
+    let cut_point = if last_word_boundary > last_valid / 2 {
+        last_word_boundary
+    } else {
+        last_valid
+    };
+
+    s[..cut_point].trim_end().to_string()
 }
 
 /// Build an AniDB format directory name
@@ -538,8 +580,88 @@ mod tests {
 
         assert!(result.truncated);
         assert!(result.name.len() <= 100);
-        assert!(result.name.contains("..."));
+        assert!(result.name.contains("…")); // Unicode ellipsis
         assert!(result.name.ends_with("[anidb-1]"));
+    }
+
+    #[test]
+    fn test_truncation_utf8_safe() {
+        // Japanese title that needs truncation - should not panic
+        let jp_title = "日本語タイトルがとても長い名前です";
+        let info = create_test_info(1, jp_title, None, Some(2020));
+
+        let config = NameBuilderConfig { max_length: 50 };
+        let result = build_human_readable_name(None, &info, &config);
+
+        assert!(result.truncated);
+        assert!(result.name.len() <= 50);
+        assert!(result.name.contains("…"));
+        assert!(result.name.ends_with("[anidb-1]"));
+        // Verify it's valid UTF-8 (would panic if not)
+        let _ = result.name.chars().count();
+    }
+
+    #[test]
+    fn test_truncation_preserves_series_tag() {
+        let long_title = "A".repeat(300);
+        let info = create_test_info(999, &long_title, None, Some(2020));
+
+        let config = NameBuilderConfig { max_length: 80 };
+        let result = build_human_readable_name(Some("MySeries"), &info, &config);
+
+        assert!(result.truncated);
+        assert!(result.name.contains("[MySeries]"));
+        assert!(result.name.contains("(2020)"));
+        assert!(result.name.contains("[anidb-999]"));
+        assert!(result.name.len() <= 80);
+    }
+
+    #[test]
+    fn test_truncation_preserves_year() {
+        let long_title = "A".repeat(300);
+        let info = create_test_info(1, &long_title, None, Some(1999));
+
+        let config = NameBuilderConfig { max_length: 60 };
+        let result = build_human_readable_name(None, &info, &config);
+
+        assert!(result.truncated);
+        assert!(result.name.contains("(1999)"));
+        assert!(result.name.contains("[anidb-1]"));
+    }
+
+    #[test]
+    fn test_truncation_word_boundary() {
+        let title = "The Quick Brown Fox Jumps Over The Lazy Dog";
+        let info = create_test_info(1, title, None, None);
+
+        let config = NameBuilderConfig { max_length: 40 };
+        let result = build_human_readable_name(None, &info, &config);
+
+        assert!(result.truncated);
+        // Should not end with partial word
+        assert!(!result.name.contains("Quic…"));
+        assert!(result.name.len() <= 40);
+    }
+
+    #[test]
+    fn test_truncate_string_utf8_safe_basic() {
+        let result = truncate_string_utf8_safe("Hello World", 5);
+        assert_eq!(result, "Hello");
+    }
+
+    #[test]
+    fn test_truncate_string_utf8_safe_japanese() {
+        // Each Japanese char is 3 bytes
+        let jp = "日本語";  // 9 bytes total
+        let result = truncate_string_utf8_safe(jp, 6);
+        assert_eq!(result, "日本"); // 6 bytes, 2 chars
+    }
+
+    #[test]
+    fn test_truncate_string_utf8_safe_mixed() {
+        let mixed = "Hello日本";  // 5 + 6 = 11 bytes
+        let result = truncate_string_utf8_safe(mixed, 8);
+        assert_eq!(result, "Hello日"); // 5 + 3 = 8 bytes
     }
 
     // ============ AniDB Name Building ============
