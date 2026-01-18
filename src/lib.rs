@@ -10,6 +10,7 @@ pub mod progress;
 pub mod rename;
 pub mod revert;
 pub mod scanner;
+pub mod ui;
 pub mod validator;
 
 pub use api::{
@@ -35,3 +36,4 @@ pub use history::{
     HistoryFile, OperationType, HISTORY_VERSION,
 };
 pub use revert::{revert_from_history, RevertError, RevertOperation, RevertOptions, RevertResult};
+pub use ui::{Ui, UiConfig};

@@ -10,20 +10,24 @@ mod progress;
 mod rename;
 mod revert;
 mod scanner;
+mod ui;
 mod validator;
 
 use api::config_from_env;
-use history::write_history;
-use revert::{revert_from_history, RevertOptions};
 use clap::Parser;
 use cli::Args;
 use error::AppError;
-use output::{display_dry_run, display_execution_result};
+use history::write_history;
 use parser::DirectoryFormat;
 use progress::Progress;
-use rename::{build_anidb_name, rename_to_readable, RenameDirection, RenameOperation, RenameOptions, RenameResult};
+use rename::{
+    build_anidb_name, rename_to_readable, RenameDirection, RenameOperation, RenameOptions,
+    RenameResult,
+};
+use revert::{revert_from_history, RevertOptions};
 use scanner::scan_directory;
 use tracing::{debug, error, info};
+use ui::{Ui, UiConfig};
 use validator::validate_directories;
 
 fn main() {
@@ -32,22 +36,36 @@ fn main() {
 
     let args = Args::parse();
 
+    // Convert verbose count to bool for UI/Progress
+    let is_verbose = args.verbose > 0;
+
+    // Initialize logging (only in verbose mode do we show tracing output)
     logging::init(args.verbose);
+
+    // Create UI
+    let ui_config = UiConfig::new(is_verbose);
+    let mut ui = Ui::new(ui_config);
+
+    // Show header
+    ui.print_header(env!("CARGO_PKG_VERSION"));
 
     debug!("Environment loaded, checking API configuration");
 
-    if let Err(e) = run(args) {
+    if let Err(e) = run(args, &mut ui) {
         error!("{}", e);
-        eprintln!("\nError: {}", e.detailed_message());
+        ui.error(&e.detailed_message());
         std::process::exit(e.exit_code().into());
     }
 }
 
-fn run(args: Args) -> Result<(), AppError> {
-    let mut progress = Progress::new();
+fn run(args: Args, ui: &mut Ui) -> Result<(), AppError> {
+    // Create progress for internal use (for functions that need it)
+    let mut progress = Progress::new_with_ui(ui.is_verbose(), ui.is_colors_enabled());
 
     if let Some(history_file) = &args.revert {
         info!("Revert mode: {:?}", history_file);
+
+        ui.info(&format!("Loading history from: {}", history_file.display()));
 
         let options = RevertOptions {
             dry_run: args.dry,
@@ -57,13 +75,13 @@ fn run(args: Args) -> Result<(), AppError> {
             .map_err(|e| AppError::Other(format!("Revert failed: {}", e)))?;
 
         // Display results
-        display_revert_result(&result, &mut std::io::stdout())
-            .map_err(|e| AppError::Other(format!("Failed to display output: {}", e)))?;
+        display_revert_result(ui, &result);
     } else if let Some(target_dir) = &args.target_dir {
         // Step 1: Scan directory
-        progress.scan_start(target_dir);
+        ui.step(&format!("Scanning {}", target_dir.display()));
         let entries = scan_directory(target_dir)?;
-        progress.scan_complete(entries.len());
+        ui.step_done();
+        ui.kv("Found", &format!("{} directories", entries.len()));
 
         info!("Found {} subdirectories", entries.len());
         for entry in &entries {
@@ -71,23 +89,40 @@ fn run(args: Args) -> Result<(), AppError> {
         }
 
         // Step 2: Validate format
-        progress.validate_start();
+        ui.step("Validating format");
         let validation = validate_directories(&entries)?;
+        ui.step_done();
+
         let format_name = match validation.format {
             DirectoryFormat::AniDb => "AniDB",
             DirectoryFormat::HumanReadable => "Human-readable",
         };
-        progress.validate_complete(format_name);
+        ui.kv("Format", format_name);
 
         info!("All directories are in {:?} format", validation.format);
 
         // Step 3: Perform rename based on current format
+        ui.blank();
+
+        let direction_str = match validation.format {
+            DirectoryFormat::AniDb => "AniDB → Human-readable",
+            DirectoryFormat::HumanReadable => "Human-readable → AniDB",
+        };
+
+        if args.dry {
+            ui.boxed_title("DRY RUN");
+        }
+
+        ui.section(&format!("Renaming ({})", direction_str));
+        ui.blank();
+
         let result = match validation.format {
             DirectoryFormat::AniDb => {
                 // AniDB -> Human-readable: requires API for metadata
                 let api_config = config_from_env();
 
                 if !api_config.is_configured() && !args.dry {
+                    ui.warning("API not configured, using cached data if available");
                     info!("API not configured, will use cached data if available");
                 }
 
@@ -97,11 +132,6 @@ fn run(args: Args) -> Result<(), AppError> {
                     cache_expiry_days: args.cache_expiry,
                 };
 
-                progress.rename_start(
-                    validation.directories.len(),
-                    "AniDB -> Human-readable",
-                );
-
                 rename_to_readable(target_dir, &validation, &api_config, &options, &mut progress)?
             }
             DirectoryFormat::HumanReadable => {
@@ -109,13 +139,9 @@ fn run(args: Args) -> Result<(), AppError> {
                 let mut result = RenameResult::new(RenameDirection::ReadableToAniDb, args.dry);
                 let total = validation.directories.len();
 
-                progress.rename_start(total, "Human-readable -> AniDB");
-
                 for (i, parsed) in validation.directories.iter().enumerate() {
-                    let destination_name = build_anidb_name(
-                        parsed.series_tag(),
-                        parsed.anidb_id(),
-                    );
+                    let destination_name =
+                        build_anidb_name(parsed.series_tag(), parsed.anidb_id());
 
                     let source_path = target_dir.join(parsed.original_name());
 
@@ -138,16 +164,17 @@ fn run(args: Args) -> Result<(), AppError> {
                         });
                     }
 
-                    progress.rename_progress(i + 1, total, &op.source_name, &op.destination_name);
+                    ui.progress(i + 1, total, &format!("{} → {}", op.source_name, op.destination_name));
 
                     // Execute rename if not dry run
                     if !args.dry {
-                        std::fs::rename(&op.source_path, &op.destination_path)
-                            .map_err(|e| AppError::RenameError {
+                        std::fs::rename(&op.source_path, &op.destination_path).map_err(|e| {
+                            AppError::RenameError {
                                 from: op.source_name.clone(),
                                 to: op.destination_name.clone(),
                                 source: e,
-                            })?;
+                            }
+                        })?;
 
                         info!("Renamed: {} -> {}", op.source_name, op.destination_name);
                     }
@@ -159,74 +186,74 @@ fn run(args: Args) -> Result<(), AppError> {
             }
         };
 
-        progress.rename_complete(result.operations.len(), args.dry);
+        // Summary
+        ui.blank();
 
-        // Write history file (only for actual renames, not dry runs)
-        if !args.dry && !result.is_empty() {
-            match write_history(&result, target_dir) {
-                Ok(history_path) => {
-                    progress.history_written(&history_path);
-                }
-                Err(e) => {
-                    progress.warn(&format!("Failed to write history: {}", e));
+        if args.dry {
+            ui.dim(&format!(
+                "{} directories would be renamed. Run without --dry to apply.",
+                result.operations.len()
+            ));
+        } else {
+            ui.success(&format!("{} directories renamed", result.operations.len()));
+
+            // Write history file
+            if !result.is_empty() {
+                match write_history(&result, target_dir) {
+                    Ok(history_path) => {
+                        ui.dim(&format!("History: {}", history_path.display()));
+                    }
+                    Err(e) => {
+                        ui.warning(&format!("Failed to write history: {}", e));
+                    }
                 }
             }
         }
 
-        // Display detailed results
-        if args.dry {
-            display_dry_run(&result, &mut std::io::stdout())
-                .map_err(|e| AppError::Other(format!("Failed to display output: {}", e)))?;
-        } else {
-            display_execution_result(&result, &mut std::io::stdout())
-                .map_err(|e| AppError::Other(format!("Failed to display output: {}", e)))?;
-        }
+        ui.blank();
     }
 
     Ok(())
 }
 
-fn display_revert_result(
-    result: &revert::RevertResult,
-    writer: &mut impl std::io::Write,
-) -> std::io::Result<()> {
-    writeln!(writer)?;
+fn display_revert_result(ui: &mut Ui, result: &revert::RevertResult) {
+    ui.blank();
 
     if result.dry_run {
-        writeln!(writer, "═══════════════════════════════════════════════════")?;
-        writeln!(writer, "                 REVERT DRY RUN")?;
-        writeln!(writer, "═══════════════════════════════════════════════════")?;
-        writeln!(writer)?;
-        writeln!(writer, "History file: {}", result.original_history.display())?;
-        writeln!(writer)?;
-        writeln!(writer, "Would revert {} directories:", result.operations.len())?;
-        writeln!(writer)?;
-
-        for (i, op) in result.operations.iter().enumerate() {
-            writeln!(writer, "  {}. [anidb-{}]", i + 1, op.anidb_id)?;
-            writeln!(writer, "     {} -> {}", op.current_name, op.revert_name)?;
-        }
-
-        writeln!(writer)?;
-        writeln!(writer, "Run without --dry to apply these reverts.")?;
-    } else {
-        writeln!(writer, "═══════════════════════════════════════════════════")?;
-        writeln!(writer, "                 REVERT COMPLETE")?;
-        writeln!(writer, "═══════════════════════════════════════════════════")?;
-        writeln!(writer)?;
-        writeln!(writer, "Reverted {} directories:", result.operations.len())?;
-        writeln!(writer)?;
+        ui.boxed_title("REVERT DRY RUN");
+        ui.blank();
+        ui.kv("History file", &result.original_history.display().to_string());
+        ui.blank();
+        ui.info(&format!(
+            "Would revert {} directories:",
+            result.operations.len()
+        ));
+        ui.blank();
 
         for op in &result.operations {
-            writeln!(writer, "  ✓ {} -> {}", op.current_name, op.revert_name)?;
+            ui.list_item(&op.current_name, &op.revert_name);
+        }
+
+        ui.blank();
+        ui.dim("Run without --dry to apply these reverts.");
+    } else {
+        ui.boxed_title("REVERT COMPLETE");
+        ui.blank();
+        ui.success(&format!(
+            "{} directories restored",
+            result.operations.len()
+        ));
+        ui.blank();
+
+        for op in &result.operations {
+            ui.list_done(&op.current_name, &op.revert_name);
         }
 
         if let Some(ref history_path) = result.revert_history_path {
-            writeln!(writer)?;
-            writeln!(writer, "Revert history: {}", history_path.display())?;
+            ui.blank();
+            ui.dim(&format!("Revert history: {}", history_path.display()));
         }
     }
 
-    writeln!(writer)?;
-    Ok(())
+    ui.blank();
 }

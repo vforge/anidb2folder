@@ -1,13 +1,30 @@
 //! Progress output for user-facing status updates.
 //!
-//! This module provides progress output that is shown regardless of verbose mode.
-//! Verbose mode adds detailed tracing on top of this base progress output.
+//! This module provides progress output for internal functions (like rename_to_readable).
+//! In verbose mode, output is suppressed since tracing handles everything.
+//! In normal mode, output is shown with colors to give feedback during API calls etc.
 
-use std::io::{self, Write};
+use colored::Colorize;
+use std::io::{self, IsTerminal, Write};
 
 /// Progress reporter for user-facing output
 pub struct Progress {
     writer: Box<dyn Write>,
+    /// When true, all output is suppressed (verbose mode uses tracing instead)
+    silent: bool,
+    /// When true, output is colorized
+    colors_enabled: bool,
+}
+
+/// Check if we should use colors in output
+fn should_use_colors() -> bool {
+    if std::env::var("NO_COLOR").is_ok() {
+        return false;
+    }
+    if std::env::var("FORCE_COLOR").is_ok() {
+        return true;
+    }
+    io::stderr().is_terminal()
 }
 
 impl Default for Progress {
@@ -19,80 +36,215 @@ impl Default for Progress {
 impl Progress {
     /// Create a new progress reporter writing to stderr
     pub fn new() -> Self {
+        let colors_enabled = should_use_colors();
         Self {
             writer: Box::new(io::stderr()),
+            silent: false,
+            colors_enabled,
+        }
+    }
+
+    /// Create a progress reporter that respects UI mode
+    /// When verbose=true, output is suppressed (tracing handles it)
+    pub fn new_with_ui(verbose: bool, colors_enabled: bool) -> Self {
+        Self {
+            writer: Box::new(io::stderr()),
+            silent: verbose,
+            colors_enabled,
         }
     }
 
     /// Create a progress reporter with a custom writer (for testing)
     pub fn with_writer(writer: Box<dyn Write>) -> Self {
-        Self { writer }
+        Self {
+            writer,
+            silent: false,
+            colors_enabled: false,
+        }
+    }
+
+    /// Create a silent progress reporter (for testing or verbose mode)
+    #[allow(dead_code)]
+    pub fn silent() -> Self {
+        Self {
+            writer: Box::new(io::sink()),
+            silent: true,
+            colors_enabled: false,
+        }
     }
 
     /// Report starting a scan
     pub fn scan_start(&mut self, path: &std::path::Path) {
-        let _ = writeln!(self.writer, "Scanning {}...", path.display());
+        if self.silent {
+            return;
+        }
+        if self.colors_enabled {
+            let _ = writeln!(
+                self.writer,
+                "{}",
+                format!("Scanning {}...", path.display()).dimmed()
+            );
+        } else {
+            let _ = writeln!(self.writer, "Scanning {}...", path.display());
+        }
     }
 
     /// Report scan complete
     pub fn scan_complete(&mut self, count: usize) {
-        let _ = writeln!(self.writer, "Found {} directories", count);
+        if self.silent {
+            return;
+        }
+        if self.colors_enabled {
+            let _ = writeln!(
+                self.writer,
+                "{}: {}",
+                "Found".bold(),
+                format!("{} directories", count)
+            );
+        } else {
+            let _ = writeln!(self.writer, "Found {} directories", count);
+        }
     }
 
     /// Report starting validation
     pub fn validate_start(&mut self) {
-        let _ = writeln!(self.writer, "Validating directory formats...");
+        if self.silent {
+            return;
+        }
+        if self.colors_enabled {
+            let _ = writeln!(
+                self.writer,
+                "{}",
+                "Validating directory formats...".dimmed()
+            );
+        } else {
+            let _ = writeln!(self.writer, "Validating directory formats...");
+        }
     }
 
     /// Report validation complete
     pub fn validate_complete(&mut self, format: &str) {
-        let _ = writeln!(self.writer, "Format: {}", format);
+        if self.silent {
+            return;
+        }
+        if self.colors_enabled {
+            let _ = writeln!(self.writer, "{}: {}", "Format".bold(), format);
+        } else {
+            let _ = writeln!(self.writer, "Format: {}", format);
+        }
     }
 
     /// Report starting rename operation
     pub fn rename_start(&mut self, total: usize, direction: &str) {
+        if self.silent {
+            return;
+        }
         let _ = writeln!(self.writer);
-        let _ = writeln!(self.writer, "Renaming {} directories ({})", total, direction);
+        if self.colors_enabled {
+            let _ = writeln!(
+                self.writer,
+                "{}",
+                format!("Renaming {} directories ({})", total, direction).bold()
+            );
+        } else {
+            let _ = writeln!(self.writer, "Renaming {} directories ({})", total, direction);
+        }
     }
 
     /// Report progress on a single rename
     pub fn rename_progress(&mut self, current: usize, total: usize, from: &str, to: &str) {
-        let _ = writeln!(
-            self.writer,
-            "[{}/{}] {} -> {}",
-            current, total, from, to
-        );
+        if self.silent {
+            return;
+        }
+        if self.colors_enabled {
+            let counter = format!("[{}/{}]", current, total);
+            let _ = writeln!(
+                self.writer,
+                "{} {} {} {}",
+                counter.cyan(),
+                from.dimmed(),
+                "→".cyan(),
+                to.bold()
+            );
+        } else {
+            let _ = writeln!(
+                self.writer,
+                "[{}/{}] {} -> {}",
+                current, total, from, to
+            );
+        }
     }
 
     /// Report fetching metadata from API
     pub fn fetch_start(&mut self, anidb_id: u32) {
-        let _ = write!(self.writer, "Fetching metadata for {}...", anidb_id);
+        if self.silent {
+            return;
+        }
+        if self.colors_enabled {
+            let _ = write!(
+                self.writer,
+                "{}",
+                format!("Fetching metadata for {}...", anidb_id).dimmed()
+            );
+        } else {
+            let _ = write!(self.writer, "Fetching metadata for {}...", anidb_id);
+        }
         let _ = self.writer.flush();
     }
 
     /// Report fetch complete (same line)
     pub fn fetch_complete(&mut self) {
-        let _ = writeln!(self.writer, " done");
+        if self.silent {
+            return;
+        }
+        if self.colors_enabled {
+            let _ = writeln!(self.writer, " {}", "done".green());
+        } else {
+            let _ = writeln!(self.writer, " done");
+        }
     }
 
-    /// Report using cached data
-    pub fn using_cache(&mut self, anidb_id: u32) {
-        let _ = writeln!(self.writer, "Using cached data for {}", anidb_id);
+    /// Report using cached data (silent - too noisy for normal output)
+    pub fn using_cache(&mut self, _anidb_id: u32) {
+        // Intentionally silent - cache usage is an implementation detail
+        // that doesn't need to be shown to the user for every directory
     }
 
-    /// Report that API would be called (dry run mode)
-    pub fn would_fetch(&mut self, anidb_id: u32) {
-        let _ = writeln!(self.writer, "Would fetch metadata for {} (dry run)", anidb_id);
+    /// Report that API would be called (dry run mode) - silent for cleaner output
+    pub fn would_fetch(&mut self, _anidb_id: u32) {
+        // Intentionally silent - too noisy for normal output
     }
 
     /// Report rename complete
     pub fn rename_complete(&mut self, success_count: usize, dry_run: bool) {
+        if self.silent {
+            return;
+        }
         let _ = writeln!(self.writer);
         if dry_run {
+            if self.colors_enabled {
+                let _ = writeln!(
+                    self.writer,
+                    "{}",
+                    format!(
+                        "Dry run complete. {} directories would be renamed.",
+                        success_count
+                    )
+                    .dimmed()
+                );
+            } else {
+                let _ = writeln!(
+                    self.writer,
+                    "Dry run complete. {} directories would be renamed.",
+                    success_count
+                );
+            }
+        } else if self.colors_enabled {
             let _ = writeln!(
                 self.writer,
-                "Dry run complete. {} directories would be renamed.",
-                success_count
+                "{} {}",
+                "✓".green().bold(),
+                format!("{} directories renamed", success_count).green()
             );
         } else {
             let _ = writeln!(
@@ -105,37 +257,112 @@ impl Progress {
 
     /// Report an error during operation (non-fatal)
     pub fn warn(&mut self, message: &str) {
-        let _ = writeln!(self.writer, "Warning: {}", message);
+        if self.silent {
+            return;
+        }
+        if self.colors_enabled {
+            let _ = writeln!(
+                self.writer,
+                "{} {}",
+                "!".yellow().bold(),
+                message.yellow()
+            );
+        } else {
+            let _ = writeln!(self.writer, "Warning: {}", message);
+        }
     }
 
     /// Report history file written
     pub fn history_written(&mut self, path: &std::path::Path) {
-        let _ = writeln!(self.writer, "History saved to: {}", path.display());
+        if self.silent {
+            return;
+        }
+        if self.colors_enabled {
+            let _ = writeln!(
+                self.writer,
+                "{}",
+                format!("History saved to: {}", path.display()).dimmed()
+            );
+        } else {
+            let _ = writeln!(self.writer, "History saved to: {}", path.display());
+        }
     }
 
     /// Report starting a revert operation
     pub fn revert_start(&mut self, total: usize, from_timestamp: &str) {
+        if self.silent {
+            return;
+        }
         let _ = writeln!(self.writer);
-        let _ = writeln!(
-            self.writer,
-            "Reverting {} directories from history ({})",
-            total, from_timestamp
-        );
+        if self.colors_enabled {
+            let _ = writeln!(
+                self.writer,
+                "{}",
+                format!(
+                    "Reverting {} directories from history ({})",
+                    total, from_timestamp
+                )
+                .bold()
+            );
+        } else {
+            let _ = writeln!(
+                self.writer,
+                "Reverting {} directories from history ({})",
+                total, from_timestamp
+            );
+        }
     }
 
     /// Report progress on a single revert
     pub fn revert_progress(&mut self, current: usize, total: usize, from: &str, to: &str) {
-        let _ = writeln!(self.writer, "[{}/{}] {} -> {}", current, total, from, to);
+        if self.silent {
+            return;
+        }
+        if self.colors_enabled {
+            let counter = format!("[{}/{}]", current, total);
+            let _ = writeln!(
+                self.writer,
+                "{} {} {} {}",
+                counter.cyan(),
+                from.dimmed(),
+                "→".cyan(),
+                to.bold()
+            );
+        } else {
+            let _ = writeln!(self.writer, "[{}/{}] {} -> {}", current, total, from, to);
+        }
     }
 
     /// Report revert complete
     pub fn revert_complete(&mut self, count: usize, dry_run: bool) {
+        if self.silent {
+            return;
+        }
         let _ = writeln!(self.writer);
         if dry_run {
+            if self.colors_enabled {
+                let _ = writeln!(
+                    self.writer,
+                    "{}",
+                    format!(
+                        "Dry run complete. {} directories would be reverted.",
+                        count
+                    )
+                    .dimmed()
+                );
+            } else {
+                let _ = writeln!(
+                    self.writer,
+                    "Dry run complete. {} directories would be reverted.",
+                    count
+                );
+            }
+        } else if self.colors_enabled {
             let _ = writeln!(
                 self.writer,
-                "Dry run complete. {} directories would be reverted.",
-                count
+                "{} {}",
+                "✓".green().bold(),
+                format!("{} directories restored", count).green()
             );
         } else {
             let _ = writeln!(
@@ -235,12 +462,13 @@ mod tests {
     }
 
     #[test]
-    fn test_cache_output() {
+    fn test_cache_output_is_silent() {
         let (mut progress, buffer) = create_test_progress();
 
         progress.using_cache(12345);
 
+        // Cache messages are now silent to reduce noise
         let output = String::from_utf8(buffer.lock().unwrap().clone()).unwrap();
-        assert!(output.contains("Using cached data for 12345"));
+        assert!(output.is_empty());
     }
 }

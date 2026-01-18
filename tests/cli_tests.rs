@@ -108,9 +108,10 @@ fn test_dry_flag() {
         .args(["--dry", dir.path().to_str().unwrap()])
         .assert()
         .success()
-        .stdout(predicate::str::contains("DRY RUN"))
-        .stdout(predicate::str::contains("AniDB -> Human-readable"))
-        .stdout(predicate::str::contains("Planned changes"));
+        // UI output goes to stderr
+        .stderr(predicate::str::contains("DRY RUN"))
+        .stderr(predicate::str::contains("Human-readable"))
+        .stderr(predicate::str::contains("would be renamed"));
 }
 
 #[test]
