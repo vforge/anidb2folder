@@ -2,6 +2,7 @@ mod api;
 mod cache;
 mod cli;
 mod error;
+mod history;
 mod logging;
 mod output;
 mod parser;
@@ -11,6 +12,7 @@ mod scanner;
 mod validator;
 
 use api::config_from_env;
+use history::write_history;
 use clap::Parser;
 use cli::Args;
 use error::AppError;
@@ -146,6 +148,18 @@ fn run(args: Args) -> Result<(), AppError> {
         };
 
         progress.rename_complete(result.operations.len(), args.dry);
+
+        // Write history file (only for actual renames, not dry runs)
+        if !args.dry && !result.is_empty() {
+            match write_history(&result, target_dir) {
+                Ok(history_path) => {
+                    progress.history_written(&history_path);
+                }
+                Err(e) => {
+                    progress.warn(&format!("Failed to write history: {}", e));
+                }
+            }
+        }
 
         // Display detailed results
         if args.dry {

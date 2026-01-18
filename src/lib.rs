@@ -2,6 +2,7 @@ pub mod api;
 pub mod cache;
 pub mod cli;
 pub mod error;
+pub mod history;
 pub mod logging;
 pub mod output;
 pub mod parser;
@@ -28,3 +29,7 @@ pub use rename::{
 };
 pub use scanner::{scan_directory, DirectoryEntry, ScannerError};
 pub use validator::{validate_directories, FormatMismatch, ValidationError, ValidationResult};
+pub use history::{
+    read_history, validate_for_revert, write_history, HistoryDirection, HistoryEntry, HistoryError,
+    HistoryFile, OperationType, HISTORY_VERSION,
+};

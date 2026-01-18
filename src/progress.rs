@@ -108,6 +108,11 @@ impl Progress {
     pub fn warn(&mut self, message: &str) {
         let _ = writeln!(self.writer, "Warning: {}", message);
     }
+
+    /// Report history file written
+    pub fn history_written(&mut self, path: &std::path::Path) {
+        let _ = writeln!(self.writer, "History saved to: {}", path.display());
+    }
 }
 
 #[cfg(test)]
