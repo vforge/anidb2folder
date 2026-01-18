@@ -231,7 +231,7 @@ Use this section to track implementation progress:
 | 21-rename-to-anidb | ⬜ Not Started | |
 | 30-character-sanitizer | ⬜ Not Started | |
 | 31-name-truncation | ⬜ Not Started | |
-| 40-dry-run-mode | ⬜ Not Started | |
+| 40-dry-run-mode | ✅ Complete | |
 | 41-history-tracking | ⬜ Not Started | |
 | 42-revert-operation | ⬜ Not Started | |
 | 99-github-actions-release | ⬜ Not Started | |

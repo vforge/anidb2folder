@@ -45,7 +45,26 @@ fn test_dry_flag() {
         .unwrap()
         .args(["--dry", dir.path().to_str().unwrap()])
         .assert()
+        .success()
+        .stdout(predicate::str::contains("DRY RUN"))
+        .stdout(predicate::str::contains("AniDB -> Human-readable"))
+        .stdout(predicate::str::contains("Planned changes"));
+}
+
+#[test]
+fn test_dry_flag_no_filesystem_changes() {
+    let dir = tempdir().unwrap();
+    let original_name = "12345";
+    std::fs::create_dir(dir.path().join(original_name)).unwrap();
+
+    Command::cargo_bin("anidb2folder")
+        .unwrap()
+        .args(["--dry", dir.path().to_str().unwrap()])
+        .assert()
         .success();
+
+    // Verify directory unchanged after dry run
+    assert!(dir.path().join(original_name).exists());
 }
 
 #[test]
