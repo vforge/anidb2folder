@@ -34,6 +34,7 @@ The sanitizer uses fullwidth Unicode characters as replacements since they look 
    - `<` → `＜` (U+FF1C Fullwidth Less-Than Sign)
    - `>` → `＞` (U+FF1E Fullwidth Greater-Than Sign)
    - `|` → `｜` (U+FF5C Fullwidth Vertical Line)
+   - `` ` `` → `'` (Backtick to single quote)
 2. Remove or replace control characters
 3. Trim leading/trailing whitespace
 4. Replace multiple consecutive spaces with single space
@@ -65,6 +66,7 @@ const REPLACEMENTS: &[(char, char)] = &[
     ('<', '＜'),   // U+FF1C Fullwidth Less-Than Sign
     ('>', '＞'),   // U+FF1E Fullwidth Greater-Than Sign
     ('|', '｜'),   // U+FF5C Fullwidth Vertical Line
+    ('`', '\''),   // Backtick to single quote
 ];
 
 /// Characters that should be removed entirely
