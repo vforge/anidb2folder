@@ -1,6 +1,6 @@
 [package]
 name = "anidb2folder"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 description = "CLI tool for renaming anime directories between AniDB ID and human-readable formats"
 license = "MIT"
