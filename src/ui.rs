@@ -292,9 +292,17 @@ impl Ui {
         );
 
         if self.config.colors_enabled {
-            let _ = writeln!(self.writer, "{}", format!("╔{}╗", "═".repeat(width - 2)).cyan());
+            let _ = writeln!(
+                self.writer,
+                "{}",
+                format!("╔{}╗", "═".repeat(width - 2)).cyan()
+            );
             let _ = writeln!(self.writer, "{}", title_line.cyan().bold());
-            let _ = writeln!(self.writer, "{}", format!("╚{}╝", "═".repeat(width - 2)).cyan());
+            let _ = writeln!(
+                self.writer,
+                "{}",
+                format!("╚{}╝", "═".repeat(width - 2)).cyan()
+            );
         } else {
             let _ = writeln!(self.writer, "╔{}╗", "═".repeat(width - 2));
             let _ = writeln!(self.writer, "{}", title_line);

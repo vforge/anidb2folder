@@ -7,8 +7,7 @@ use regex::Regex;
 
 // AniDB format: [<series>] <anidb_id>
 // Examples: "12345", "[AS0] 12345", "[My Series] 67890"
-static ANIDB_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^(?:\[([^\]]+)\]\s*)?(\d+)$").unwrap());
+static ANIDB_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?:\[([^\]]+)\]\s*)?(\d+)$").unwrap());
 
 // Human-readable format: [<series>] <title_jp> ／ <title_en> (<year>) [anidb-<id>]
 // The unicode slash ／ (U+FF0F) separates JP and EN titles

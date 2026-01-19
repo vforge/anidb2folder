@@ -115,10 +115,7 @@ mod tests {
         fs::write(&path, bad_json).unwrap();
 
         let result = read_history(&path);
-        assert!(matches!(
-            result,
-            Err(HistoryError::VersionMismatch { .. })
-        ));
+        assert!(matches!(result, Err(HistoryError::VersionMismatch { .. })));
     }
 
     #[test]

@@ -157,7 +157,7 @@ impl CacheStore {
     }
 
     /// Check if cache is empty
-    #[cfg(test)]
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.data.entries.is_empty()
     }

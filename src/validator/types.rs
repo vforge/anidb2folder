@@ -24,4 +24,3 @@ pub enum ValidationError {
     #[error("No directories found in target")]
     NoDirectories,
 }
-

@@ -35,14 +35,9 @@ pub enum RevertError {
     SerializeError(#[from] serde_json::Error),
 }
 
+#[derive(Default)]
 pub struct RevertOptions {
     pub dry_run: bool,
-}
-
-impl Default for RevertOptions {
-    fn default() -> Self {
-        Self { dry_run: false }
-    }
 }
 
 /// A single revert operation
@@ -139,10 +134,7 @@ fn prepare_revert_operations(
         let current_path = target_dir.join(&entry.destination);
         let revert_path = target_dir.join(&entry.source);
 
-        debug!(
-            "Checking revert: {} -> {}",
-            entry.destination, entry.source
-        );
+        debug!("Checking revert: {} -> {}", entry.destination, entry.source);
 
         // Check current (destination) exists
         if !current_path.exists() {
@@ -155,10 +147,7 @@ fn prepare_revert_operations(
 
         // Check original (source) doesn't exist
         if revert_path.exists() {
-            errors.push(format!(
-                "Cannot revert: '{}' already exists",
-                entry.source
-            ));
+            errors.push(format!("Cannot revert: '{}' already exists", entry.source));
             continue;
         }
 
@@ -322,10 +311,7 @@ mod tests {
         assert!(dir.path().join("[X] 99").exists());
 
         // Verify original names are gone
-        assert!(!dir
-            .path()
-            .join("Anime Title (2020) [anidb-12345]")
-            .exists());
+        assert!(!dir.path().join("Anime Title (2020) [anidb-12345]").exists());
         assert!(!dir
             .path()
             .join("[X] Other Title (2019) [anidb-99]")
@@ -344,10 +330,7 @@ mod tests {
         assert!(result.dry_run);
 
         // Verify directories are NOT changed (dry run)
-        assert!(dir
-            .path()
-            .join("Anime Title (2020) [anidb-12345]")
-            .exists());
+        assert!(dir.path().join("Anime Title (2020) [anidb-12345]").exists());
         assert!(!dir.path().join("12345").exists());
     }
 

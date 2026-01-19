@@ -90,11 +90,7 @@ impl Progress {
                 to
             );
         } else {
-            let _ = writeln!(
-                self.writer,
-                "[{}/{}] {} -> {}",
-                current, total, from, to
-            );
+            let _ = writeln!(self.writer, "[{}/{}] {} -> {}", current, total, from, to);
         }
     }
 
@@ -144,12 +140,7 @@ impl Progress {
             return;
         }
         if self.colors_enabled {
-            let _ = writeln!(
-                self.writer,
-                "{} {}",
-                "!".yellow().bold(),
-                message.yellow()
-            );
+            let _ = writeln!(self.writer, "{} {}", "!".yellow().bold(), message.yellow());
         } else {
             let _ = writeln!(self.writer, "Warning: {}", message);
         }
@@ -227,11 +218,7 @@ impl Progress {
                 let _ = writeln!(
                     self.writer,
                     "{}",
-                    format!(
-                        "Dry run complete. {} directories would be reverted.",
-                        count
-                    )
-                    .dimmed()
+                    format!("Dry run complete. {} directories would be reverted.", count).dimmed()
                 );
             } else {
                 let _ = writeln!(

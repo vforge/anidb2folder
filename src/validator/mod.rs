@@ -41,7 +41,10 @@ pub fn validate_directories(
     }
 
     if !unrecognized.is_empty() {
-        warn!(count = unrecognized.len(), "Directories with unrecognized format");
+        warn!(
+            count = unrecognized.len(),
+            "Directories with unrecognized format"
+        );
         return Err(ValidationError::UnrecognizedDirectories {
             directories: unrecognized,
         });

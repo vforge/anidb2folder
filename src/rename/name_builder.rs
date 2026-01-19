@@ -334,7 +334,12 @@ mod tests {
 
     #[test]
     fn test_jp_title_not_containing_en_shows_both() {
-        let info = create_test_info(789, "Shingeki no Kyojin", Some("Attack on Titan"), Some(2013));
+        let info = create_test_info(
+            789,
+            "Shingeki no Kyojin",
+            Some("Attack on Titan"),
+            Some(2013),
+        );
 
         let result = build_human_readable_name(None, &info, &NameBuilderConfig::default());
 
@@ -377,10 +382,7 @@ mod tests {
 
         // 2019 != 2020, so year should be added
         assert!(result.name.contains("(2020)"));
-        assert_eq!(
-            result.name,
-            "Anime 2019 Remaster (2020) [anidb-102]"
-        );
+        assert_eq!(result.name, "Anime 2019 Remaster (2020) [anidb-102]");
     }
 
     #[test]
@@ -652,14 +654,14 @@ mod tests {
     #[test]
     fn test_truncate_string_utf8_safe_japanese() {
         // Each Japanese char is 3 bytes
-        let jp = "日本語";  // 9 bytes total
+        let jp = "日本語"; // 9 bytes total
         let result = truncate_string_utf8_safe(jp, 6);
         assert_eq!(result, "日本"); // 6 bytes, 2 chars
     }
 
     #[test]
     fn test_truncate_string_utf8_safe_mixed() {
-        let mixed = "Hello日本";  // 5 + 6 = 11 bytes
+        let mixed = "Hello日本"; // 5 + 6 = 11 bytes
         let result = truncate_string_utf8_safe(mixed, 8);
         assert_eq!(result, "Hello日"); // 5 + 3 = 8 bytes
     }

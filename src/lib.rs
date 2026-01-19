@@ -18,11 +18,11 @@ pub use api::{
 };
 pub use cache::{CacheConfig, CacheError, CacheStore};
 pub use error::{AppError, ExitCode};
-pub use progress::Progress;
 pub use parser::{
     parse_directory_name, AniDbFormat, DirectoryFormat, HumanReadableFormat, ParseError,
     ParsedDirectory,
 };
+pub use progress::Progress;
 pub use rename::{
     build_anidb_name, rename_to_readable, RenameDirection, RenameError, RenameOperation,
     RenameOptions, RenameResult,

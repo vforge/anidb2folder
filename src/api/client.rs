@@ -56,15 +56,11 @@ impl AniDbClient {
         let client = Client::builder()
             .timeout(Duration::from_secs(config.timeout_secs))
             .gzip(true)
-            .user_agent(format!(
-                "{}/{}",
-                config.client_name, config.client_version
-            ))
+            .user_agent(format!("{}/{}", config.client_name, config.client_version))
             .build()
             .map_err(|e| ApiError::NetworkError(e.to_string()))?;
 
-        let rate_limiter =
-            RateLimiter::new(Duration::from_secs(config.min_request_interval_secs));
+        let rate_limiter = RateLimiter::new(Duration::from_secs(config.min_request_interval_secs));
 
         Ok(Self {
             client,
@@ -162,8 +158,7 @@ impl AniDbClient {
                 let error_msg = &body[start + 7..end];
                 let error_lower = error_msg.to_lowercase();
 
-                if error_lower.contains("anime not found")
-                    || error_lower.contains("no such anime")
+                if error_lower.contains("anime not found") || error_lower.contains("no such anime")
                 {
                     return Err(ApiError::NotFound(anidb_id));
                 }
@@ -206,14 +201,12 @@ impl AniDbClient {
                             for attr in e.attributes().flatten() {
                                 match attr.key.as_ref() {
                                     b"type" => {
-                                        current_title_type = Some(
-                                            String::from_utf8_lossy(&attr.value).to_string(),
-                                        );
+                                        current_title_type =
+                                            Some(String::from_utf8_lossy(&attr.value).to_string());
                                     }
                                     b"xml:lang" => {
-                                        current_title_lang = Some(
-                                            String::from_utf8_lossy(&attr.value).to_string(),
-                                        );
+                                        current_title_lang =
+                                            Some(String::from_utf8_lossy(&attr.value).to_string());
                                     }
                                     _ => {}
                                 }
@@ -240,12 +233,11 @@ impl AniDbClient {
                         if let (Some(ref t_type), Some(ref t_lang)) =
                             (&current_title_type, &current_title_lang)
                         {
-                            // Main title (romaji)
-                            if t_type == "main" {
-                                title_main = Some(text.clone());
-                            }
-                            // Fallback: official romaji title if no main title
-                            else if t_type == "official" && t_lang == "x-jat" && title_main.is_none()
+                            // Main title (romaji) or fallback to official romaji
+                            if t_type == "main"
+                                || (t_type == "official"
+                                    && t_lang == "x-jat"
+                                    && title_main.is_none())
                             {
                                 title_main = Some(text.clone());
                             }

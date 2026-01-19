@@ -102,9 +102,7 @@ fn run(args: Args, ui: &mut Ui) -> Result<(), AppError> {
             ui.success("Target directory verified");
         }
 
-        let options = RevertOptions {
-            dry_run: args.dry,
-        };
+        let options = RevertOptions { dry_run: args.dry };
 
         let result = revert_from_history(history_file, &options, &mut progress)
             .map_err(|e| AppError::Other(format!("Revert failed: {}", e)))?;
@@ -167,7 +165,13 @@ fn run(args: Args, ui: &mut Ui) -> Result<(), AppError> {
                     cache_expiry_days: args.cache_expiry,
                 };
 
-                rename_to_readable(target_dir, &validation, &api_config, &options, &mut progress)?
+                rename_to_readable(
+                    target_dir,
+                    &validation,
+                    &api_config,
+                    &options,
+                    &mut progress,
+                )?
             }
             DirectoryFormat::HumanReadable => {
                 // Human-readable -> AniDB: no API needed
@@ -175,8 +179,7 @@ fn run(args: Args, ui: &mut Ui) -> Result<(), AppError> {
                 let total = validation.directories.len();
 
                 for (i, parsed) in validation.directories.iter().enumerate() {
-                    let destination_name =
-                        build_anidb_name(parsed.series_tag(), parsed.anidb_id());
+                    let destination_name = build_anidb_name(parsed.series_tag(), parsed.anidb_id());
 
                     let source_path = target_dir.join(parsed.original_name());
 
@@ -272,7 +275,10 @@ fn display_revert_result(ui: &mut Ui, result: &revert::RevertResult) {
     if result.dry_run {
         ui.boxed_title("REVERT DRY RUN");
         ui.blank();
-        ui.kv("History file", &result.original_history.display().to_string());
+        ui.kv(
+            "History file",
+            &result.original_history.display().to_string(),
+        );
         ui.blank();
         ui.info(&format!(
             "Would revert {} directories:",
@@ -289,10 +295,7 @@ fn display_revert_result(ui: &mut Ui, result: &revert::RevertResult) {
     } else {
         ui.boxed_title("REVERT COMPLETE");
         ui.blank();
-        ui.success(&format!(
-            "{} directories restored",
-            result.operations.len()
-        ));
+        ui.success(&format!("{} directories restored", result.operations.len()));
         ui.blank();
 
         for op in &result.operations {

@@ -59,7 +59,10 @@ fn create_history_from_result(result: &RenameResult, target_dir: &Path) -> Histo
     }
 }
 
-pub fn write_history_file(history: &HistoryFile, target_dir: &Path) -> Result<PathBuf, HistoryError> {
+pub fn write_history_file(
+    history: &HistoryFile,
+    target_dir: &Path,
+) -> Result<PathBuf, HistoryError> {
     let filename = history.generate_filename();
     let file_path = target_dir.join(&filename);
 
