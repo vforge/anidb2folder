@@ -362,3 +362,69 @@ fn test_revert_with_matching_target_dir_succeeds() {
         .success()
         .stderr(predicate::str::contains("Target directory verified"));
 }
+
+#[test]
+fn test_cache_info_no_cache() {
+    let dir = tempdir().unwrap();
+
+    cargo_bin_cmd!("anidb2folder")
+        .args(["--cache-info", dir.path().to_str().unwrap()])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Cache Information"))
+        .stderr(predicate::str::contains("No cache file found"));
+}
+
+#[test]
+fn test_cache_info_with_cache() {
+    let dir = tempdir().unwrap();
+    create_test_cache(dir.path());
+
+    cargo_bin_cmd!("anidb2folder")
+        .args(["--cache-info", dir.path().to_str().unwrap()])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Cache Information"))
+        .stderr(predicate::str::contains("Total entries"))
+        .stderr(predicate::str::contains("2")); // We create 2 entries in test cache
+}
+
+#[test]
+fn test_cache_clear() {
+    let dir = tempdir().unwrap();
+    create_test_cache(dir.path());
+
+    // Verify cache exists
+    assert!(dir.path().join(".anidb2folder-cache.json").exists());
+
+    cargo_bin_cmd!("anidb2folder")
+        .args(["--cache-clear", dir.path().to_str().unwrap()])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Clear Cache"))
+        .stderr(predicate::str::contains("Cleared"));
+}
+
+#[test]
+fn test_cache_prune_no_expired() {
+    let dir = tempdir().unwrap();
+    create_test_cache(dir.path()); // Creates fresh entries (not expired)
+
+    cargo_bin_cmd!("anidb2folder")
+        .args(["--cache-prune", dir.path().to_str().unwrap()])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Prune"))
+        .stderr(predicate::str::contains("No expired entries"));
+}
+
+#[test]
+fn test_cache_clear_no_cache() {
+    let dir = tempdir().unwrap();
+
+    cargo_bin_cmd!("anidb2folder")
+        .args(["--cache-clear", dir.path().to_str().unwrap()])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("No cache file found"));
+}

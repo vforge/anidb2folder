@@ -13,6 +13,7 @@ mod ui;
 mod validator;
 
 use api::config_from_env;
+use cache::{CacheConfig, CacheStore};
 use clap::Parser;
 use cli::Args;
 use error::AppError;
@@ -60,6 +61,19 @@ fn main() {
 fn run(args: Args, ui: &mut Ui) -> Result<(), AppError> {
     // Create progress for internal use (for functions that need it)
     let mut progress = Progress::new_with_ui(ui.is_verbose(), ui.is_colors_enabled());
+
+    // Handle cache commands
+    if let Some(dir) = &args.cache_info {
+        return handle_cache_info(dir, args.cache_expiry, ui);
+    }
+
+    if let Some(dir) = &args.cache_clear {
+        return handle_cache_clear(dir, args.cache_expiry, ui);
+    }
+
+    if let Some(dir) = &args.cache_prune {
+        return handle_cache_prune(dir, args.cache_expiry, ui);
+    }
 
     if let Some(history_file) = &args.revert {
         info!("Revert mode: {:?}", history_file);
@@ -277,4 +291,115 @@ fn display_revert_result(ui: &mut Ui, result: &revert::RevertResult) {
     }
 
     ui.blank();
+}
+
+fn handle_cache_info(
+    dir: &std::path::Path,
+    cache_expiry: u32,
+    ui: &mut Ui,
+) -> Result<(), AppError> {
+    ui.section("Cache Information");
+    ui.blank();
+
+    let config = CacheConfig::for_target_dir(dir, cache_expiry);
+    ui.kv("Cache file", &config.cache_path.display().to_string());
+
+    if !config.cache_path.exists() {
+        ui.info("No cache file found");
+        ui.blank();
+        return Ok(());
+    }
+
+    let cache = CacheStore::load(config.clone());
+    let total = cache.len();
+    let expired = cache.expired_count();
+    let valid = total - expired;
+
+    ui.kv("Total entries", &total.to_string());
+    ui.kv("Valid entries", &valid.to_string());
+    ui.kv("Expired entries", &expired.to_string());
+    ui.kv("Expiry setting", &format!("{} days", cache_expiry));
+
+    if let Ok(metadata) = std::fs::metadata(&config.cache_path) {
+        let size = metadata.len();
+        let size_str = if size < 1024 {
+            format!("{} B", size)
+        } else if size < 1024 * 1024 {
+            format!("{:.1} KB", size as f64 / 1024.0)
+        } else {
+            format!("{:.1} MB", size as f64 / (1024.0 * 1024.0))
+        };
+        ui.kv("File size", &size_str);
+    }
+
+    ui.blank();
+    Ok(())
+}
+
+fn handle_cache_clear(
+    dir: &std::path::Path,
+    cache_expiry: u32,
+    ui: &mut Ui,
+) -> Result<(), AppError> {
+    ui.section("Clear Cache");
+    ui.blank();
+
+    let config = CacheConfig::for_target_dir(dir, cache_expiry);
+
+    if !config.cache_path.exists() {
+        ui.info("No cache file found");
+        ui.blank();
+        return Ok(());
+    }
+
+    let mut cache = CacheStore::load(config);
+    let count = cache.len();
+
+    cache.clear();
+    if let Err(e) = cache.save() {
+        return Err(AppError::Other(format!("Failed to save cache: {}", e)));
+    }
+
+    ui.success(&format!("Cleared {} cached entries", count));
+    ui.blank();
+    Ok(())
+}
+
+fn handle_cache_prune(
+    dir: &std::path::Path,
+    cache_expiry: u32,
+    ui: &mut Ui,
+) -> Result<(), AppError> {
+    ui.section("Prune Expired Cache Entries");
+    ui.blank();
+
+    let config = CacheConfig::for_target_dir(dir, cache_expiry);
+
+    if !config.cache_path.exists() {
+        ui.info("No cache file found");
+        ui.blank();
+        return Ok(());
+    }
+
+    let mut cache = CacheStore::load(config);
+    let before = cache.len();
+    let removed = cache.prune_expired();
+    let after = cache.len();
+
+    if let Err(e) = cache.save() {
+        return Err(AppError::Other(format!("Failed to save cache: {}", e)));
+    }
+
+    ui.kv("Entries before", &before.to_string());
+    ui.kv("Expired removed", &removed.to_string());
+    ui.kv("Entries after", &after.to_string());
+
+    if removed > 0 {
+        ui.success(&format!("Pruned {} expired entries", removed));
+    } else {
+        ui.info("No expired entries to prune");
+    }
+
+    ui.blank();
+    Ok(())
 }

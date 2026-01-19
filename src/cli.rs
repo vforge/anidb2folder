@@ -7,7 +7,7 @@ use std::path::PathBuf;
 #[command(about = "Rename anime directories between AniDB ID and human-readable formats")]
 pub struct Args {
     /// Target directory containing anime subdirectories
-    #[arg(required_unless_present = "revert")]
+    #[arg(required_unless_present_any = ["revert", "cache_info", "cache_clear", "cache_prune"])]
     pub target_dir: Option<PathBuf>,
 
     /// Simulate changes without modifying the filesystem
@@ -29,4 +29,16 @@ pub struct Args {
     /// Cache expiration in days
     #[arg(short, long, default_value = "30")]
     pub cache_expiry: u32,
+
+    /// Show cache information for a directory
+    #[arg(long, value_name = "DIR")]
+    pub cache_info: Option<PathBuf>,
+
+    /// Clear all cached entries for a directory
+    #[arg(long, value_name = "DIR")]
+    pub cache_clear: Option<PathBuf>,
+
+    /// Remove expired cache entries for a directory
+    #[arg(long, value_name = "DIR")]
+    pub cache_prune: Option<PathBuf>,
 }
