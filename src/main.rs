@@ -16,7 +16,7 @@ use api::config_from_env;
 use clap::Parser;
 use cli::Args;
 use error::AppError;
-use history::write_history;
+use history::{read_history, validate_for_revert, write_history};
 use parser::DirectoryFormat;
 use progress::Progress;
 use rename::{
@@ -65,6 +65,28 @@ fn run(args: Args, ui: &mut Ui) -> Result<(), AppError> {
         info!("Revert mode: {:?}", history_file);
 
         ui.info(&format!("Loading history from: {}", history_file.display()));
+
+        // Read history first for validation and display
+        let history = read_history(history_file)
+            .map_err(|e| AppError::Other(format!("Failed to read history: {}", e)))?;
+
+        // Display target directory prominently
+        ui.kv(
+            "Target directory",
+            &history.target_directory.display().to_string(),
+        );
+
+        // If user provided target_dir, validate it matches history
+        if let Some(target_dir) = &args.target_dir {
+            validate_for_revert(&history, target_dir).map_err(|_| {
+                AppError::Other(format!(
+                    "Directory mismatch: expected '{}', got '{}'",
+                    history.target_directory.display(),
+                    target_dir.display()
+                ))
+            })?;
+            ui.success("Target directory verified");
+        }
 
         let options = RevertOptions {
             dry_run: args.dry,

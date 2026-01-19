@@ -256,3 +256,109 @@ fn test_rejects_empty_directory() {
         .code(1) // ExitCode::GeneralError (NoDirectories)
         .stderr(predicate::str::contains("No subdirectories"));
 }
+
+/// Create a test history file for revert tests
+fn create_test_history(dir: &std::path::Path, target_dir: &std::path::Path) -> std::path::PathBuf {
+    use chrono::Utc;
+
+    #[derive(serde::Serialize)]
+    struct HistoryEntry {
+        source: String,
+        destination: String,
+        anidb_id: u32,
+        truncated: bool,
+    }
+
+    #[derive(serde::Serialize)]
+    struct HistoryFile {
+        version: String,
+        executed_at: chrono::DateTime<Utc>,
+        operation: String,
+        direction: String,
+        target_directory: std::path::PathBuf,
+        tool_version: String,
+        changes: Vec<HistoryEntry>,
+    }
+
+    let history = HistoryFile {
+        version: "1.0".to_string(),
+        executed_at: Utc::now(),
+        operation: "rename".to_string(),
+        direction: "anidb_to_readable".to_string(),
+        target_directory: target_dir.to_path_buf(),
+        tool_version: "0.1.0".to_string(),
+        changes: vec![HistoryEntry {
+            source: "12345".to_string(),
+            destination: "Test Anime (2020) [anidb-12345]".to_string(),
+            anidb_id: 12345,
+            truncated: false,
+        }],
+    };
+
+    let history_path = dir.join("test-history.json");
+    let content = serde_json::to_string_pretty(&history).unwrap();
+    std::fs::write(&history_path, content).unwrap();
+
+    history_path
+}
+
+#[test]
+fn test_revert_with_mismatched_target_dir_fails() {
+    let dir = tempdir().unwrap();
+    let other_dir = tempdir().unwrap();
+
+    // Create history file pointing to dir.path()
+    let history_path = create_test_history(dir.path(), dir.path());
+
+    // Try to revert with a different target directory
+    cargo_bin_cmd!("anidb2folder")
+        .args([
+            "--revert",
+            history_path.to_str().unwrap(),
+            other_dir.path().to_str().unwrap(),
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Directory mismatch"));
+}
+
+#[test]
+fn test_revert_shows_target_directory() {
+    let dir = tempdir().unwrap();
+
+    // Create the renamed directory that would exist after a rename
+    std::fs::create_dir(dir.path().join("Test Anime (2020) [anidb-12345]")).unwrap();
+
+    // Create history file
+    let history_path = create_test_history(dir.path(), dir.path());
+
+    // Revert in dry-run mode should show target directory
+    cargo_bin_cmd!("anidb2folder")
+        .args(["--dry", "--revert", history_path.to_str().unwrap()])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Target directory"));
+}
+
+#[test]
+fn test_revert_with_matching_target_dir_succeeds() {
+    let dir = tempdir().unwrap();
+
+    // Create the renamed directory that would exist after a rename
+    std::fs::create_dir(dir.path().join("Test Anime (2020) [anidb-12345]")).unwrap();
+
+    // Create history file
+    let history_path = create_test_history(dir.path(), dir.path());
+
+    // Revert with matching target directory should succeed (in dry-run mode)
+    cargo_bin_cmd!("anidb2folder")
+        .args([
+            "--dry",
+            "--revert",
+            history_path.to_str().unwrap(),
+            dir.path().to_str().unwrap(),
+        ])
+        .assert()
+        .success()
+        .stderr(predicate::str::contains("Target directory verified"));
+}

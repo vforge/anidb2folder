@@ -25,12 +25,7 @@ pub fn read_history(path: &Path) -> Result<HistoryFile, HistoryError> {
     Ok(history)
 }
 
-/// Validate that a history file can be used for revert
-///
-/// TODO(feature-60): Integrate into revert flow - when user provides target_dir with --revert,
-/// validate it matches history. If not provided, display which directory will be affected.
-/// See: revert.rs:revert_from_history
-#[allow(dead_code)] // Part of feature-60: revert safety validation
+/// Validate that a history file can be used for revert on the given target directory
 pub fn validate_for_revert(history: &HistoryFile, target_dir: &Path) -> Result<(), HistoryError> {
     // Check target directory matches
     if history.target_directory != target_dir {

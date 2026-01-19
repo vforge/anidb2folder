@@ -114,7 +114,7 @@ Additional considerations, edge cases, or future enhancements.
 
 | Index | Feature | Dependencies | Description |
 |-------|---------|--------------|-------------|
-| 60 | Revert Safety Validation | 42 | Validate target directory before revert operation |
+| [60](features/60-revert-safety-validation.md) | Revert Safety Validation | 42 | Validate target directory before revert operation |
 | 61 | Cache Management CLI | 11 | CLI commands for cache info, clear, prune (--cache-info, --clear-cache) |
 | 62 | Use Direction Descriptions | 20, 21 | Use RenameDirection::description() instead of hardcoded strings in main.rs |
 
@@ -244,7 +244,7 @@ Use this section to track implementation progress:
 | 40-dry-run-mode | ✅ Complete | |
 | 41-history-tracking | ✅ Complete | |
 | 42-revert-operation | ✅ Complete | |
-| 60-revert-safety | ⬜ Not Started | Partial impl exists: `validate_for_revert` |
+| 60-revert-safety | ✅ Complete | |
 | 61-cache-management | ⬜ Not Started | Partial impl exists: CacheStore methods |
 | 62-direction-descriptions | 🟡 In Progress | `description()` and `result.dry_run` used; `truncated_count` pending |
 | 99-github-actions-release | ⬜ Not Started | |
