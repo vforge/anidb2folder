@@ -117,6 +117,8 @@ Additional considerations, edge cases, or future enhancements.
 | [60](features/60-revert-safety-validation.md) | Revert Safety Validation | 42 | Validate target directory before revert operation |
 | [61](features/61-cache-management.md) | Cache Management CLI | 11 | CLI commands for cache info, clear, prune |
 | 62 | Use Direction Descriptions | 20, 21 | Use RenameDirection::description() instead of hardcoded strings in main.rs |
+| [63](features/63-fallback-title-handling.md) | Fallback Title Handling | 10 | Use fallback titles when main title is missing |
+| [64](features/64-web-fallback-on-ban.md) | Web Fallback on Ban | 10 | Scrape web pages when API is rate-limited/banned |
 
 ### Independent (99)
 
@@ -247,6 +249,8 @@ Use this section to track implementation progress:
 | 60-revert-safety | ✅ Complete | |
 | 61-cache-management | ✅ Complete | |
 | 62-direction-descriptions | ✅ Complete | |
+| 63-fallback-title-handling | ⬜ Not Started | |
+| 64-web-fallback-on-ban | ⬜ Not Started | |
 | 99-github-actions-release | ⬜ Not Started | |
 
 **Legend:** ⬜ Not Started | 🟡 In Progress | ✅ Complete | ❌ Blocked
