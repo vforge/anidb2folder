@@ -81,6 +81,16 @@ anidb2folder -vvv /path/to/anime  # Trace
 ./run.sh check    # Run fmt check, clippy, and tests
 ./run.sh fmt      # Format code
 ./run.sh run      # Run with arguments
+./run.sh release  # Build cross-platform binaries
+```
+
+### Test data
+
+Create sample directories for manual testing:
+
+```bash
+./scripts/setup-test-data.sh
+./run.sh run --dry ./test-data
 ```
 
 ## License
