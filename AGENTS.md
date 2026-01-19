@@ -24,25 +24,11 @@ Instructions for AI coding assistants working on this project.
 ```
 docs/
 ├── high-level-overview.md    # Architecture, formats, error handling
-├── features.md               # Feature index and dependency graph
-└── features/
-    ├── 00-cli-scaffold.md    # CLI structure
-    ├── 01-directory-scanner.md
-    ├── 02-verbose-mode.md
-    ├── 03-error-handling.md
-    ├── 05-format-parser.md
-    ├── 06-format-validator.md
-    ├── 10-anidb-api-client.md
-    ├── 11-local-cache.md
-    ├── 20-rename-to-readable.md
-    ├── 21-rename-to-anidb.md
-    ├── 30-character-sanitizer.md
-    ├── 31-name-truncation.md
-    ├── 40-dry-run-mode.md
-    ├── 41-history-tracking.md
-    ├── 42-revert-operation.md
-    └── 99-github-actions-release.md
+├── features.md               # Feature index, status, and dependency graph
+└── features/                 # Individual feature specifications
 ```
+
+See [docs/features.md](docs/features.md) for the complete feature list and implementation status.
 
 ## Do's ✅
 
@@ -75,7 +61,7 @@ docs/
 | Language | Rust |
 | CLI parsing | `clap` v4.4+ (derive macros) |
 | Logging | `tracing` + `tracing-subscriber` |
-| HTTP client | `reqwest` (blocking) |
+| HTTP client | `reqwest` (blocking, rustls-tls) |
 | XML parsing | `quick-xml` |
 | Serialization | `serde` + `serde_json` |
 | Error handling | `thiserror` (library) / `anyhow` (application) |
@@ -101,10 +87,13 @@ Human-readable: [series] Title ／ English Title (2024) [anidb-12345]
 | 1 | General error |
 | 2 | Invalid arguments |
 | 3 | Directory not found |
-| 4 | Format validation failed |
-| 5 | API error |
-| 6 | Cache error |
-| 7 | Filesystem error |
+| 4 | Mixed formats |
+| 5 | Unrecognized format |
+| 6 | API error |
+| 7 | Permission error |
+| 8 | History error |
+| 9 | Rename error |
+| 10 | Cache error |
 
 ### File Naming
 
@@ -121,6 +110,10 @@ When implementing features:
 3. Use temporary directories for filesystem tests
 4. Test both success and error paths
 5. Test edge cases documented in each feature file
+
+## Development
+
+Use `./run.sh <command>` for common tasks. See [README.md](README.md) for available commands.
 
 ## Common Tasks
 
