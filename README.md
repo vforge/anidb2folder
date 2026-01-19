@@ -93,6 +93,14 @@ Create sample directories for manual testing:
 ./run.sh run --dry ./test-data
 ```
 
+### Git hooks
+
+Enable pre-commit checks (fmt, clippy, tests):
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
