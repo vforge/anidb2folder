@@ -1,65 +1,86 @@
-# 64 - Web Fallback on API Ban
+# 64 - Web Data Source
 
 ## Summary
 
-Fall back to scraping AniDB web pages when the HTTP API returns a ban/rate-limit response.
+Add web scraping as an alternative data source option via `--source web` flag.
 
 ## Dependencies
 
-- **10-anidb-api-client** — Extends the API client with fallback mechanism
+- **10-anidb-api-client** — Extends the data fetching with alternative source
+- **11-local-cache** — Cache entries track their data source
 
 ## Description
 
-AniDB's HTTP API can temporarily ban clients that exceed rate limits. When this happens, the API returns HTTP 500 with an XML response containing "banned". Currently, this causes the tool to fail completely.
+AniDB data can be fetched from two sources:
+1. **HTTP API** — Fast (2s rate limit), requires registered client credentials
+2. **Web scraping** — Slow (30s rate limit), no credentials needed, public pages
 
-This feature adds a fallback mechanism that switches to scraping the public AniDB web pages when the API is banned. Web scraping requires a much slower request rate (1 request per 15 seconds) but allows the tool to continue functioning.
+This feature adds web scraping as an explicit alternative data source that users can choose via a CLI flag. This is useful when:
+- User doesn't have API credentials registered
+- API is temporarily unavailable or banned
+- User prefers not to use the API for any reason
 
 ### Current Behavior
 
-When API is banned:
-```
-✗ Failed to fetch data for anime ID 12345:
-  Banned by AniDB: <error message>
-```
-
-Tool stops processing remaining directories.
+Data is always fetched from the HTTP API. No alternative.
 
 ### Proposed Behavior
 
-When API is banned:
-1. Log warning about API ban and inform user about fallback mode
-2. Automatically switch to web scraping mode (no opt-in required)
-3. Increase rate limit to 15 seconds between requests
-4. Continue processing with slower fallback
-5. Mark directory names with `[web]` suffix to indicate fallback data source
-6. If web scraping fails, abort (same as any other error)
+User can choose data source via `--source` flag:
+```bash
+# Default: use HTTP API
+anidb2folder /path/to/anime
+
+# Explicit: use web scraping
+anidb2folder --source web /path/to/anime
+```
+
+Web source characteristics:
+1. Rate limit: 1 request per 30 seconds (conservative)
+2. No API credentials required
+3. Cache entries marked with source for later validation
+4. Slower but functional alternative
 
 ## Requirements
 
 ### Functional Requirements
 
-1. Detect API ban response (HTTP 500 + XML containing "banned")
-2. Switch to web scraping mode automatically (no opt-in flag required)
-3. Scrape anime data from `https://anidb.net/anime/{id}`
-4. Enforce 15-second minimum interval between web requests
-5. Extract from HTML:
+1. Add `--source <api|web>` CLI flag (default: `api`)
+2. Scrape anime data from `https://anidb.net/anime/{id}` when `--source web`
+3. Enforce 30-second minimum interval between web requests
+4. Extract from HTML:
    - Main title (romaji)
    - English title (if available)
    - Year (from start date)
-6. Log clearly when switching to fallback mode (inform user once)
-7. Mark directory names with `[web]` suffix when data came from web scraping
-8. If web scraping fails for an anime, abort with error (same as API failures)
-9. Continue processing remaining directories after ban (don't abort on ban itself)
+5. Store data source in cache entries (`source: "api"` or `source: "web"`)
+6. API can later validate/refresh web-sourced cache entries
+7. Log clearly which source is being used
 
 ### Non-Functional Requirements
 
-1. Respect AniDB's server resources — strict rate limiting
-2. Graceful degradation — slower but functional
-3. No additional dependencies if possible (use existing reqwest)
+1. Respect AniDB's server resources — strict 30s rate limiting for web
+2. No additional dependencies if possible (use existing reqwest)
+3. Web scraping is opt-in, not automatic
 
 ## Implementation Guide
 
-### Step 1: Add WebScraper struct
+### Step 1: Add DataSource enum and CLI flag
+
+```rust
+// In src/cli.rs or args
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum DataSource {
+    #[default]
+    Api,
+    Web,
+}
+
+// In CLI args
+#[arg(long, default_value = "api")]
+pub source: DataSource,
+```
+
+### Step 2: Add WebScraper struct
 
 Create `src/api/web_scraper.rs`:
 
@@ -71,7 +92,7 @@ use std::sync::Mutex;
 use tracing::{debug, info, warn};
 
 const WEB_BASE_URL: &str = "https://anidb.net/anime";
-const WEB_MIN_INTERVAL: Duration = Duration::from_secs(15);
+const WEB_MIN_INTERVAL: Duration = Duration::from_secs(30);
 
 pub struct WebScraper {
     client: Client,
@@ -96,7 +117,7 @@ impl WebScraper {
         self.wait_for_rate_limit();
 
         let url = format!("{}/{}", WEB_BASE_URL, anidb_id);
-        info!("Fetching from web (fallback): {}", url);
+        info!("Fetching from web: {}", url);
 
         let response = self.client.get(&url).send()?;
         let html = response.text()?;
@@ -110,7 +131,7 @@ impl WebScraper {
             let elapsed = last_time.elapsed();
             if elapsed < WEB_MIN_INTERVAL {
                 let wait = WEB_MIN_INTERVAL - elapsed;
-                warn!("Web fallback rate limit: waiting {:?}", wait);
+                info!("Web source rate limit: waiting {:?}", wait);
                 std::thread::sleep(wait);
             }
         }
@@ -136,7 +157,7 @@ impl WebScraper {
             title_main,
             title_en,
             release_year,
-            from_web_fallback: true,  // Mark as web-sourced data
+            source: DataSource::Web,  // Mark data source
         })
     }
 
@@ -175,63 +196,41 @@ fn html_decode(s: &str) -> String {
 }
 ```
 
-### Step 2: Update AniDbClient to use fallback
+### Step 3: Create DataFetcher trait and implementations
 
 ```rust
-// In api/client.rs
+// In api/mod.rs - unified interface for data sources
 
-pub struct AniDbClient {
-    client: Client,
-    config: ApiConfig,
-    rate_limiter: RateLimiter,
-    web_fallback: Option<WebScraper>,
-    use_web_fallback: bool,
+pub trait DataFetcher {
+    fn fetch_anime(&self, anidb_id: u32) -> Result<AnimeInfo, ApiError>;
 }
 
-impl AniDbClient {
-    pub fn fetch_anime(&self, anidb_id: u32) -> Result<AnimeInfo, ApiError> {
-        // If already in fallback mode, use web scraper
-        if self.use_web_fallback {
-            if let Some(ref scraper) = self.web_fallback {
-                return scraper.fetch_anime(anidb_id);
-            }
-        }
-
-        // Try API first
-        match self.fetch_anime_via_api(anidb_id) {
-            Ok(info) => Ok(info),
-            Err(ApiError::Banned(msg)) => {
-                warn!("API banned: {}. Switching to web fallback.", msg);
-                self.enable_web_fallback();
-
-                if let Some(ref scraper) = self.web_fallback {
-                    scraper.fetch_anime(anidb_id)
-                } else {
-                    Err(ApiError::Banned(msg))
-                }
-            }
-            Err(e) => Err(e),
-        }
-    }
-
-    fn enable_web_fallback(&mut self) {
-        if self.web_fallback.is_none() {
-            match WebScraper::new() {
-                Ok(scraper) => {
-                    self.web_fallback = Some(scraper);
-                    self.use_web_fallback = true;
-                }
-                Err(e) => {
-                    warn!("Failed to create web fallback: {}", e);
-                }
-            }
-        }
-        self.use_web_fallback = true;
+impl DataFetcher for AniDbClient {
+    fn fetch_anime(&self, anidb_id: u32) -> Result<AnimeInfo, ApiError> {
+        let mut info = self.fetch_anime_via_api(anidb_id)?;
+        info.source = DataSource::Api;
+        Ok(info)
     }
 }
+
+impl DataFetcher for WebScraper {
+    fn fetch_anime(&self, anidb_id: u32) -> Result<AnimeInfo, ApiError> {
+        // Already sets source = Web in parse_html
+        self.fetch_anime_impl(anidb_id)
+    }
+}
+
+// In main.rs - choose fetcher based on CLI flag
+let fetcher: Box<dyn DataFetcher> = match args.source {
+    DataSource::Api => Box::new(AniDbClient::new(config)?),
+    DataSource::Web => {
+        info!("Using web scraping (30s rate limit)");
+        Box::new(WebScraper::new()?)
+    }
+};
 ```
 
-### Step 3: Add module and exports
+### Step 4: Add module and exports
 
 ```rust
 // In api/mod.rs
@@ -239,7 +238,7 @@ mod web_scraper;
 pub use web_scraper::WebScraper;
 ```
 
-### Step 4: Update AnimeInfo struct
+### Step 5: Update AnimeInfo struct
 
 ```rust
 // In api/types.rs
@@ -248,61 +247,74 @@ pub struct AnimeInfo {
     pub title_main: String,
     pub title_en: Option<String>,
     pub release_year: Option<u16>,
-    pub from_web_fallback: bool,  // New field
+    pub source: DataSource,  // Track where data came from
 }
 ```
 
-### Step 5: Update name builder for [web] marker
+### Step 6: Update cache entry format
 
 ```rust
-// In name_builder.rs - when building the readable name
-fn build_readable_name(&self, info: &AnimeInfo) -> String {
-    let mut name = // ... existing logic ...
-
-    // Add [web] marker if data came from web fallback
-    if info.from_web_fallback {
-        name.push_str(" [web]");
-    }
-
-    name
+// In cache/types.rs
+#[derive(Serialize, Deserialize)]
+pub struct CacheEntry {
+    pub anidb_id: u32,
+    pub title_main: String,
+    pub title_en: Option<String>,
+    pub release_year: Option<u16>,
+    pub source: String,      // "api" or "web"
+    pub cached_at: String,   // ISO 8601 timestamp
 }
+
+// When caching:
+let entry = CacheEntry {
+    anidb_id: info.anidb_id,
+    title_main: info.title_main.clone(),
+    title_en: info.title_en.clone(),
+    release_year: info.release_year,
+    source: match info.source {
+        DataSource::Api => "api".to_string(),
+        DataSource::Web => "web".to_string(),
+    },
+    cached_at: chrono::Utc::now().to_rfc3339(),
+};
 ```
+
+This allows the API to later validate web-sourced entries by checking the `source` field and potentially refreshing them with API data when available.
 
 ## Test Cases
 
 ### Unit Tests
 
-1. **test_detect_ban_response** — Correctly identifies ban in API response
-2. **test_web_scraper_rate_limit** — Enforces 15-second interval
-3. **test_parse_html_main_title** — Extracts title from HTML
-4. **test_parse_html_missing_title** — Returns error when title not found
-5. **test_fallback_triggered_on_ban** — Switches to web on ban
+1. **test_web_scraper_rate_limit** — Enforces 30-second interval
+2. **test_parse_html_main_title** — Extracts title from HTML
+3. **test_parse_html_missing_title** — Returns error when title not found
+4. **test_cache_entry_stores_source** — Cache entry includes source field
+5. **test_data_source_cli_flag** — CLI parses --source correctly
 
 ### Integration Tests
 
-1. **test_continues_after_ban** — Tool processes remaining dirs after ban
-2. **test_web_fallback_produces_valid_names** — Directory names are correct
-3. **test_web_fallback_adds_marker** — Directory names include `[web]` suffix
-4. **test_web_failure_aborts** — Tool aborts when web scraping fails
+1. **test_web_source_produces_valid_names** — Directory names are correct with web source
+2. **test_cache_entry_source_field** — Cached entries have correct source value
+3. **test_web_source_rate_limit_enforced** — 30s delays between requests
 
 ### Manual Testing
 
 1. Test with known anime ID via web: `https://anidb.net/anime/1`
 2. Verify extracted data matches API data
-3. Test rate limiting (should see 15s delays in verbose mode)
+3. Test rate limiting: `anidb2folder --source web -v /path` (should see 30s delays)
+4. Verify cache files contain `"source": "web"` field
 
 ## Notes
 
-- **Rate limit is critical** — 15 seconds is conservative, could potentially be 10s
+- **Rate limit is critical** — 30 seconds is conservative to respect AniDB servers
 - **HTML structure may change** — Web scraping is fragile, may need updates
-- **No API credentials needed** — Web pages are public
-- **Consider caching aggressively** — Minimize web requests
-- **Future enhancement** — Could add `--web-only` flag to force web mode
-- **Future enhancement** — Could periodically retry API to see if ban lifted
+- **No API credentials needed** — Web pages are public, useful for users without registered clients
+- **Cache tracks source** — Allows future validation/refresh of web-sourced data with API
+- **Future enhancement** — Could add `--refresh-web-cache` to re-fetch web entries via API
 
 ## Design Decisions
 
-1. **Automatic fallback** — No opt-in flag required; web fallback activates automatically on API ban
-2. **No special progress indicator** — User is informed once when fallback activates, no ongoing progress changes
-3. **Abort on web failure** — If web scraping fails for an anime, abort with error (same behavior as API failures)
-4. **Filename marker** — Directories renamed using web data include `[web]` suffix to indicate data source
+1. **Explicit opt-in** — User must specify `--source web`; not automatic fallback
+2. **Conservative rate limit** — 30 seconds between requests (slower than API's 2s)
+3. **Cache source tracking** — Entries store whether data came from API or web
+4. **No filename marker** — Source is tracked in cache, not in directory names

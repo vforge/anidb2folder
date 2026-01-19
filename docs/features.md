@@ -118,7 +118,7 @@ Additional considerations, edge cases, or future enhancements.
 | [61](features/61-cache-management.md) | Cache Management CLI | 11 | CLI commands for cache info, clear, prune |
 | 62 | Use Direction Descriptions | 20, 21 | Use RenameDirection::description() instead of hardcoded strings in main.rs |
 | [63](features/63-fallback-title-handling.md) | Fallback Title Handling | 10 | Use fallback titles when main title is missing |
-| [64](features/64-web-fallback-on-ban.md) | Web Fallback on Ban | 10 | Scrape web pages when API is rate-limited/banned |
+| [64](features/64-web-fallback-on-ban.md) | Web Data Source | 10, 11 | Alternative data source via `--source web` flag |
 
 ### Independent (99)
 
