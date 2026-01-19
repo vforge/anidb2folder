@@ -11,6 +11,10 @@ case "${1:-help}" in
     build)
         cargo build --release
         ;;
+    release)
+        shift
+        "$SCRIPT_DIR/scripts/build-release.sh" "$@"
+        ;;
     test)
         setup_test_data
         cargo test
@@ -33,11 +37,12 @@ case "${1:-help}" in
 Usage: ./run.sh <command>
 
 Commands:
-  build   Build release binary
-  test    Run all tests (sets up test-data first)
-  check   Run fmt check, clippy, and tests
-  fmt     Format code
-  run     Run with arguments (e.g., ./run.sh run --help)
+  build    Build release binary
+  release  Build cross-platform binaries (linux, macos)
+  test     Run all tests (sets up test-data first)
+  check    Run fmt check, clippy, and tests
+  fmt      Format code
+  run      Run with arguments (e.g., ./run.sh run --help)
 
 Verbosity levels:
   (none)  Only warnings and errors
