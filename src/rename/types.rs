@@ -87,8 +87,7 @@ impl RenameResult {
         self.operations.push(op);
     }
 
-    /// TODO(feature-62): Report truncated count in UI output
-    #[allow(dead_code)]
+    /// Count of operations where the name was truncated
     pub fn truncated_count(&self) -> usize {
         self.operations.iter().filter(|op| op.truncated).count()
     }

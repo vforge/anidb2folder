@@ -246,7 +246,7 @@ Use this section to track implementation progress:
 | 42-revert-operation | ✅ Complete | |
 | 60-revert-safety | ✅ Complete | |
 | 61-cache-management | ✅ Complete | |
-| 62-direction-descriptions | 🟡 In Progress | `description()` and `result.dry_run` used; `truncated_count` pending |
+| 62-direction-descriptions | ✅ Complete | |
 | 99-github-actions-release | ⬜ Not Started | |
 
 **Legend:** ⬜ Not Started | 🟡 In Progress | ✅ Complete | ❌ Blocked

@@ -224,13 +224,28 @@ fn run(args: Args, ui: &mut Ui) -> Result<(), AppError> {
         // Summary
         ui.blank();
 
+        let truncated = result.truncated_count();
+
         if result.dry_run {
             ui.dim(&format!(
                 "{} directories would be renamed. Run without --dry to apply.",
                 result.operations.len()
             ));
+            if truncated > 0 {
+                ui.warning(&format!(
+                    "{} name(s) will be truncated due to length limits",
+                    truncated
+                ));
+            }
         } else {
             ui.success(&format!("{} directories renamed", result.operations.len()));
+
+            if truncated > 0 {
+                ui.warning(&format!(
+                    "{} name(s) were truncated due to length limits",
+                    truncated
+                ));
+            }
 
             // Write history file
             if !result.is_empty() {
