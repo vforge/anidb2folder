@@ -63,6 +63,9 @@ pub enum ApiError {
     #[error("Failed to parse response: {0}")]
     ParseError(String),
 
+    #[error("Incomplete data for anime {anidb_id}: {field}")]
+    IncompleteData { anidb_id: u32, field: String },
+
     #[error("API returned error: {0}")]
     ServerError(String),
 

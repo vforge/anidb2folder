@@ -31,6 +31,9 @@ pub enum AppError {
     #[error("API error for anime {anidb_id}: {message}")]
     ApiError { anidb_id: u32, message: String },
 
+    #[error("Incomplete data from AniDB for anime {anidb_id}: missing {field}")]
+    IncompleteData { anidb_id: u32, field: String },
+
     /// TODO(feature-42): Implement From<HistoryError> for AppError and use in main.rs revert flow
     #[allow(dead_code)]
     #[error("History file error: {message}")]
@@ -63,6 +66,7 @@ impl AppError {
             AppError::MixedFormats { .. } => ExitCode::MixedFormats,
             AppError::UnrecognizedFormat { .. } => ExitCode::UnrecognizedFormat,
             AppError::ApiError { .. } => ExitCode::ApiError,
+            AppError::IncompleteData { .. } => ExitCode::ApiError,
             AppError::HistoryError { .. } => ExitCode::HistoryError,
             AppError::RenameError { .. } => ExitCode::RenameError,
             AppError::CacheError { .. } => ExitCode::CacheError,
@@ -159,6 +163,19 @@ impl AppError {
                 )
             }
 
+            AppError::IncompleteData { anidb_id, field } => {
+                format!(
+                    "AniDB returned incomplete data for anime ID {}:\n  Missing: {}\n\n\
+                     The anime exists in AniDB but is missing required metadata.\n\
+                     This can happen with:\n\
+                     - Very new entries not yet fully populated\n\
+                     - Entries pending moderation\n\
+                     - Rare edge cases in AniDB's database\n\n\
+                     Check the entry at: https://anidb.net/anime/{}",
+                    anidb_id, field, anidb_id
+                )
+            }
+
             AppError::HistoryError { path, message } => {
                 let path_info = path
                     .as_ref()
@@ -252,6 +269,7 @@ impl From<crate::api::ApiError> for AppError {
                 anidb_id: 0,
                 message: format!("Failed to parse response: {}", msg),
             },
+            ApiError::IncompleteData { anidb_id, field } => AppError::IncompleteData { anidb_id, field },
             ApiError::ServerError(msg) => AppError::ApiError {
                 anidb_id: 0,
                 message: format!("API error: {}", msg),

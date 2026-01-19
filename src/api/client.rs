@@ -100,7 +100,10 @@ impl AniDbClient {
                     // Don't retry for certain errors
                     if matches!(
                         e,
-                        ApiError::NotFound(_) | ApiError::Banned(_) | ApiError::NotConfigured
+                        ApiError::NotFound(_)
+                            | ApiError::Banned(_)
+                            | ApiError::NotConfigured
+                            | ApiError::IncompleteData { .. }
                     ) {
                         return Err(e);
                     }
@@ -275,11 +278,9 @@ impl AniDbClient {
             buf.clear();
         }
 
-        let title_main = title_main.ok_or_else(|| {
-            ApiError::ParseError(format!(
-                "No main title found for anime {}",
-                anidb_id
-            ))
+        let title_main = title_main.ok_or_else(|| ApiError::IncompleteData {
+            anidb_id,
+            field: "main title".to_string(),
         })?;
 
         Ok(AnimeInfo {
@@ -399,7 +400,10 @@ mod tests {
         let client = AniDbClient::new(config).unwrap();
         let result = client.parse_anime_xml(5, xml);
 
-        assert!(matches!(result, Err(ApiError::ParseError(_))));
+        assert!(matches!(
+            result,
+            Err(ApiError::IncompleteData { anidb_id: 5, .. })
+        ));
     }
 
     #[test]
