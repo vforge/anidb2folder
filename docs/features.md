@@ -251,6 +251,6 @@ Use this section to track implementation progress:
 | 62-direction-descriptions | ✅ Complete | |
 | 63-fallback-title-handling | ⬜ Not Started | |
 | 64-web-fallback-on-ban | ⬜ Not Started | |
-| 99-github-actions-release | ⬜ Not Started | |
+| 99-github-actions-release | ✅ Complete | |
 
 **Legend:** ⬜ Not Started | 🟡 In Progress | ✅ Complete | ❌ Blocked

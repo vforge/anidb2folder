@@ -1,6 +1,7 @@
 # anidb2folder
 
 [![CI](https://github.com/vforge/anidb2folder/actions/workflows/ci.yml/badge.svg)](https://github.com/vforge/anidb2folder/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/vforge/anidb2folder)](https://github.com/vforge/anidb2folder/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 CLI tool for renaming anime directories between AniDB ID and human-readable formats.
@@ -21,13 +22,32 @@ Title (2024) [anidb-12345]
 
 ## Installation
 
+### Download binary
+
+Download the latest release for your platform from [Releases](https://github.com/vforge/anidb2folder/releases/latest):
+
+| Platform | Binary |
+|----------|--------|
+| Linux x64 | `anidb2folder-linux-x64` |
+| Linux ARM64 | `anidb2folder-linux-arm64` |
+| macOS Intel | `anidb2folder-macos-x64` |
+| macOS Apple Silicon | `anidb2folder-macos-arm64` |
+| Windows x64 | `anidb2folder-windows-x64.exe` |
+
+```bash
+# Example: macOS Apple Silicon
+curl -LO https://github.com/vforge/anidb2folder/releases/latest/download/anidb2folder-macos-arm64
+chmod +x anidb2folder-macos-arm64
+mv anidb2folder-macos-arm64 /usr/local/bin/anidb2folder
+```
+
 ### From source
 
 ```bash
 cargo install --path .
 ```
 
-### Build release binaries
+### Build locally
 
 ```bash
 # Requires: zig, cargo-zigbuild
@@ -85,6 +105,7 @@ anidb2folder -vvv /path/to/anime  # Trace
 ./run.sh fmt      # Format code
 ./run.sh run      # Run with arguments
 ./run.sh release  # Build cross-platform binaries
+./run.sh publish  # Bump version and publish release
 ```
 
 ### Test data
@@ -103,6 +124,17 @@ Enable pre-commit checks (fmt, clippy, tests):
 ```bash
 git config core.hooksPath .githooks
 ```
+
+### Publishing a release
+
+Releases use major-only versioning (1.0.0, 2.0.0, etc.):
+
+```bash
+./run.sh publish        # Bump version, tag, and push
+./run.sh publish --dry  # Preview without changes
+```
+
+This bumps the version in `Cargo.toml`, commits, tags, and pushes to GitHub. GitHub Actions then builds binaries for all platforms and creates the release.
 
 ## License
 

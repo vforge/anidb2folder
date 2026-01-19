@@ -15,6 +15,10 @@ case "${1:-help}" in
         shift
         "$SCRIPT_DIR/scripts/build-release.sh" "$@"
         ;;
+    publish)
+        shift
+        "$SCRIPT_DIR/scripts/release.sh" "$@"
+        ;;
     test)
         setup_test_data
         cargo test
@@ -39,6 +43,7 @@ Usage: ./run.sh <command>
 Commands:
   build    Build release binary
   release  Build cross-platform binaries (linux, macos)
+  publish  Bump version and publish GitHub release
   test     Run all tests (sets up test-data first)
   check    Run fmt check, clippy, and tests
   fmt      Format code
