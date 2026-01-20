@@ -57,7 +57,7 @@ jobs:
         if: matrix.cross
         run: |
           pip3 install ziglang
-          cargo install cargo-zigbuild
+          command -v cargo-zigbuild || cargo install cargo-zigbuild
 
       - name: Build
         run: |
