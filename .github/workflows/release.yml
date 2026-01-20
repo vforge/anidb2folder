@@ -93,6 +93,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -113,10 +115,66 @@ jobs:
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get current and previous tags
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -A1 "^$CURRENT_TAG$" | tail -1)
+
+          if [ "$PREVIOUS_TAG" = "$CURRENT_TAG" ] || [ -z "$PREVIOUS_TAG" ]; then
+            # First release or no previous tag
+            RANGE="$CURRENT_TAG"
+            echo "First release - showing all commits"
+          else
+            RANGE="$PREVIOUS_TAG..$CURRENT_TAG"
+            echo "Generating changelog for $RANGE"
+          fi
+
+          # Collect commits by category
+          FEATURES=""
+          FIXES=""
+          OTHER=""
+
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^✨|feat ]]; then
+              FEATURES+="- ${line#* }"$'\n'
+            elif [[ "$line" =~ ^🐛|fix ]]; then
+              FIXES+="- ${line#* }"$'\n'
+            elif [[ "$line" =~ ^🔖|chore:\ release ]]; then
+              # Skip release commits
+              continue
+            else
+              OTHER+="- ${line#* }"$'\n'
+            fi
+          done < <(git log --pretty=format:"%s" $RANGE 2>/dev/null || git log --pretty=format:"%s")
+
+          # Build changelog
+          CHANGELOG=""
+
+          if [ -n "$FEATURES" ]; then
+            CHANGELOG+="## ✨ Features & Enhancements"$'\n\n'
+            CHANGELOG+="$FEATURES"$'\n'
+          fi
+
+          if [ -n "$FIXES" ]; then
+            CHANGELOG+="## 🐛 Bug Fixes"$'\n\n'
+            CHANGELOG+="$FIXES"$'\n'
+          fi
+
+          if [ -n "$OTHER" ]; then
+            CHANGELOG+="## 📦 Other Changes"$'\n\n'
+            CHANGELOG+="$OTHER"$'\n'
+          fi
+
+          # Write to file for the release action
+          echo "$CHANGELOG" > CHANGELOG.md
+          cat CHANGELOG.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             release/*
-          generate_release_notes: true
+          body_path: CHANGELOG.md
           draft: false

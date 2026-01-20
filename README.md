@@ -127,14 +127,16 @@ git config core.hooksPath .githooks
 
 ### Publishing a release
 
-Releases use major-only versioning (1.0.0, 2.0.0, etc.):
+Releases follow [semantic versioning](https://semver.org/):
 
 ```bash
-./run.sh publish        # Bump version, tag, and push
+./run.sh publish patch  # Bug fixes (1.2.3 -> 1.2.4)
+./run.sh publish minor  # New features (1.2.3 -> 1.3.0)
+./run.sh publish major  # Breaking changes (1.2.3 -> 2.0.0)
 ./run.sh publish --dry  # Preview without changes
 ```
 
-This bumps the version in `Cargo.toml`, commits, tags, and pushes to GitHub. GitHub Actions then builds binaries for all platforms and creates the release.
+This bumps the version in `Cargo.toml`, commits, tags, and pushes to GitHub. GitHub Actions then builds binaries for all platforms and creates the release with an auto-generated changelog.
 
 ## License
 

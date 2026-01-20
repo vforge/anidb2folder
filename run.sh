@@ -44,6 +44,10 @@ Commands:
   build    Build release binary
   release  Build cross-platform binaries (linux, macos)
   publish  Bump version and publish GitHub release
+             publish major  - Breaking changes (X.0.0)
+             publish minor  - New features (X.Y.0)
+             publish patch  - Bug fixes (X.Y.Z)
+             publish --dry  - Preview without changes
   test     Run all tests (sets up test-data first)
   check    Run fmt check, clippy, and tests
   fmt      Format code

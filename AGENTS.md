@@ -151,16 +151,19 @@ Single line, max 72 characters. Be specific and meaningful.
 
 ### Commit Types & Emojis
 
-| Emoji | Type | Use for |
-|-------|------|---------|
-| ✨ | `feat` | New feature |
-| 🐛 | `fix` | Bug fix |
-| 📝 | `docs` | Documentation only |
-| ♻️ | `refactor` | Code restructure (no behavior change) |
-| 🧪 | `test` | Adding or updating tests |
-| 🔧 | `chore` | Build, config, dependencies |
-| 🚀 | `perf` | Performance improvement |
-| 🎨 | `style` | Formatting, whitespace |
+| Emoji | Type | Use for | Changelog Section |
+|-------|------|---------|-------------------|
+| ✨ | `feat` | New feature | Features & Enhancements |
+| 🐛 | `fix` | Bug fix | Bug Fixes |
+| 📝 | `docs` | Documentation only | Other Changes |
+| ♻️ | `refactor` | Code restructure (no behavior change) | Other Changes |
+| 🧪 | `test` | Adding or updating tests | Other Changes |
+| 🔧 | `chore` | Build, config, dependencies | Other Changes |
+| 🚀 | `perf` | Performance improvement | Features & Enhancements |
+| 🎨 | `style` | Formatting, whitespace | Other Changes |
+| 🔖 | `release` | Version release | (excluded from changelog) |
+
+**Note:** Commit messages are automatically parsed to generate release changelogs. Use the correct emoji prefix to ensure proper categorization.
 
 ### Examples
 
@@ -179,6 +182,18 @@ Single line, max 72 characters. Be specific and meaningful.
 2. **One logical change per commit** — don't mix features with fixes
 3. **Reference feature index** — mention `[feat-XX]` when relevant
 4. **No WIP commits** — every commit should be complete and working
+
+## Versioning
+
+This project uses [semantic versioning](https://semver.org/) (MAJOR.MINOR.PATCH):
+
+| Bump | When to use | Example |
+|------|-------------|---------|
+| `patch` | Bug fixes, minor improvements | 1.2.3 → 1.2.4 |
+| `minor` | New features, backward-compatible | 1.2.3 → 1.3.0 |
+| `major` | Breaking changes | 1.2.3 → 2.0.0 |
+
+To publish a release: `./run.sh publish <major|minor|patch>`
 
 ## Questions to Ask
 

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Release script - bumps major version and publishes
+# Release script - bumps version and publishes
 #
 # Usage:
-#   ./scripts/release.sh         # Bump major version and release
-#   ./scripts/release.sh --dry   # Show what would happen without making changes
+#   ./scripts/release.sh major    # 1.2.3 -> 2.0.0 (breaking changes)
+#   ./scripts/release.sh minor    # 1.2.3 -> 1.3.0 (new features)
+#   ./scripts/release.sh patch    # 1.2.3 -> 1.2.4 (bug fixes)
+#   ./scripts/release.sh --dry    # Show what would happen
 
 set -e
 
@@ -19,8 +21,35 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 DRY_RUN=false
-if [[ "$1" == "--dry" ]]; then
-    DRY_RUN=true
+BUMP_TYPE=""
+
+# Parse arguments
+for arg in "$@"; do
+    case $arg in
+        --dry)
+            DRY_RUN=true
+            ;;
+        major|minor|patch)
+            BUMP_TYPE="$arg"
+            ;;
+        *)
+            echo -e "${RED}Unknown argument: $arg${NC}"
+            echo "Usage: $0 [major|minor|patch] [--dry]"
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "$BUMP_TYPE" ] && ! $DRY_RUN; then
+    echo -e "${RED}Error: Must specify bump type (major, minor, or patch)${NC}"
+    echo ""
+    echo "Usage: $0 <major|minor|patch> [--dry]"
+    echo ""
+    echo "  major  - Breaking changes (1.2.3 -> 2.0.0)"
+    echo "  minor  - New features (1.2.3 -> 1.3.0)"
+    echo "  patch  - Bug fixes (1.2.3 -> 1.2.4)"
+    echo "  --dry  - Preview without making changes"
+    exit 1
 fi
 
 info() { echo -e "${GREEN}[INFO]${NC} $1"; }
@@ -33,11 +62,25 @@ get_version() {
     grep '^version = ' "$CARGO_TOML" | head -1 | sed 's/version = "\(.*\)"/\1/'
 }
 
-# Bump major version: X.0.0 -> (X+1).0.0
-bump_major() {
+# Bump version based on type
+bump_version() {
     local version=$1
-    local major="${version%%.*}"
-    echo "$((major + 1)).0.0"
+    local type=$2
+
+    local major minor patch
+    IFS='.' read -r major minor patch <<< "$version"
+
+    case $type in
+        major)
+            echo "$((major + 1)).0.0"
+            ;;
+        minor)
+            echo "$major.$((minor + 1)).0"
+            ;;
+        patch)
+            echo "$major.$minor.$((patch + 1))"
+            ;;
+    esac
 }
 
 # Update version in Cargo.toml
@@ -47,6 +90,23 @@ set_version() {
         sed -i '' "s/^version = \".*\"/version = \"$new_version\"/" "$CARGO_TOML"
     else
         sed -i "s/^version = \".*\"/version = \"$new_version\"/" "$CARGO_TOML"
+    fi
+}
+
+# Show commits since last tag
+show_changes() {
+    local last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+    if [ -z "$last_tag" ]; then
+        echo "  (first release - all commits)"
+        return
+    fi
+
+    echo "  Changes since $last_tag:"
+    git log --pretty=format:"    %s" "$last_tag..HEAD" | head -20
+    local count=$(git rev-list --count "$last_tag..HEAD")
+    if [ "$count" -gt 20 ]; then
+        echo "    ... and $((count - 20)) more commits"
     fi
 }
 
@@ -78,13 +138,31 @@ main() {
 
     # Get versions
     local current_version=$(get_version)
-    local new_version=$(bump_major "$current_version")
+
+    if $DRY_RUN && [ -z "$BUMP_TYPE" ]; then
+        # Just show current state
+        echo
+        info "Current version: $current_version"
+        echo
+        echo "Bump options:"
+        echo "  major -> $(bump_version "$current_version" major)"
+        echo "  minor -> $(bump_version "$current_version" minor)"
+        echo "  patch -> $(bump_version "$current_version" patch)"
+        echo
+        show_changes
+        exit 0
+    fi
+
+    local new_version=$(bump_version "$current_version" "$BUMP_TYPE")
     local tag="v$new_version"
 
     echo
     info "Current version: $current_version"
+    info "Bump type:       $BUMP_TYPE"
     info "New version:     $new_version"
     info "Git tag:         $tag"
+    echo
+    show_changes
     echo
 
     # Check tag doesn't exist
@@ -98,7 +176,7 @@ main() {
         echo "Would execute:"
         echo "  1. Update Cargo.toml version to $new_version"
         echo "  2. Run cargo check to update Cargo.lock"
-        echo "  3. Commit: \"chore: release v$new_version\""
+        echo "  3. Commit: \"🔖 chore: release v$new_version\""
         echo "  4. Create tag: $tag"
         echo "  5. Push commit and tag to origin"
         echo "  6. GitHub Actions builds and publishes release"
